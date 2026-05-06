@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <title>ドキュメントグラフ</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: -apple-system, 'Segoe UI', 'Yu Gothic UI', sans-serif;
+            background: #1e1e1e;
+            color: #ccc;
+            overflow: hidden;
+        }
+
+        /* ── Toolbar ── */
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            flex-shrink: 0;
+        }
+
+        #toolbar h1 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #eee;
+            margin-right: 6px;
+        }
+
+        .btn {
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #3c3c3c;
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 3px;
+            transition: background 0.1s;
+        }
+
+        .btn:hover {
+            background: #4a4a4a;
+        }
+
+        .btn.active {
+            background: #0e639c;
+            color: #fff;
+            border-color: #0e639c;
+        }
+
+        #search {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #3c3c3c;
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 3px;
+            width: 220px;
+        }
+
+        #search:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        #node-count {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* ── Layout ── */
+        #main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── Graph panel ── */
+        #graph-panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid #3c3c3c;
+        }
+
+        #svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #legend {
+            position: absolute;
+            top: 8px;
+            left: 36px;
+            background: rgba(30, 30, 30, 0.93);
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 2;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        #legend .lr {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        #legend .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ── SVG elements ── */
+        .link {
+            stroke: #383838;
+            stroke-width: 1.5px;
+            fill: none;
+        }
+
+        .link.highlighted {
+            stroke: #5a9fd4;
+            stroke-width: 2.5px;
+        }
+
+        .node {
+            cursor: pointer;
+        }
+
+        .node circle {
+            stroke: #252526;
+            stroke-width: 1.5px;
+        }
+
+        .node:hover circle {
+            stroke: #eee;
+            stroke-width: 2px;
+        }
+
+        .node.selected circle {
+            stroke: #fff;
+            stroke-width: 3px;
+        }
+
+        .node.dimmed circle {
+            opacity: 0.12;
+        }
+
+        .node.dimmed text {
+            opacity: 0.08;
+        }
+
+        .node text {
+            font-size: 9px;
+            fill: #888;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .tree-group circle {
+            cursor: default;
+        }
+
+        .tree-group text {
+            cursor: default;
+            user-select: none;
+            fill: #bbb;
+            font-size: 10px;
+        }
+
+        .tree-group.proj text {
+            fill: #ddd;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tree-leaf {
+            cursor: pointer;
+        }
+
+        .tree-leaf text {
+            font-size: 9px;
+            fill: #888;
+            user-select: none;
+        }
+
+        .tree-leaf:hover text {
+            fill: #ddd;
+        }
+
+        .tree-leaf.selected circle {
+            stroke: #fff;
+            stroke-width: 3px;
+        }
+
+        .tree-leaf.dimmed {
+            opacity: 0.15;
+        }
+
+        /* ── Content panel ── */
+        #content-panel {
+            width: 440px;
+            min-width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #file-meta {
+            padding: 12px 16px;
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            flex-shrink: 0;
+            min-height: 52px;
+        }
+
+        #meta-placeholder {
+            color: #555;
+            font-size: 12px;
+            padding-top: 2px;
+        }
+
+        #meta-title {
+            font-size: 14px;
+            color: #eee;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        #meta-badges {
+            display: none;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #3c3c3c;
+            color: #bbb;
+            white-space: nowrap;
+        }
+
+        .badge.type {
+            color: #fff;
+        }
+
+        .badge.status {
+            background: #1a3a1a;
+            color: #6dbf6d;
+        }
+
+        .badge.proj {
+            background: #2a2a40;
+            color: #9090c0;
+        }
+
+        #file-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        #md-placeholder {
+            color: #555;
+            font-size: 12px;
+        }
+
+        #md-content {
+            display: none;
+        }
+
+        /* ── Rendered Markdown ── */
+        #md-content h1 {
+            font-size: 16px;
+            color: #ddd;
+            margin: 0 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        #md-content h2 {
+            font-size: 14px;
+            color: #ccc;
+            margin: 16px 0 6px;
+        }
+
+        #md-content h3 {
+            font-size: 13px;
+            color: #bbb;
+            margin: 12px 0 4px;
+        }
+
+        #md-content p {
+            margin: 6px 0;
+            line-height: 1.75;
+            font-size: 13px;
+        }
+
+        #md-content ul,
+        #md-content ol {
+            padding-left: 20px;
+            margin: 4px 0;
+        }
+
+        #md-content li {
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        #md-content code {
+            background: #2d2d2d;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        #md-content pre {
+            background: #2d2d2d;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        #md-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        #md-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        #md-content th,
+        #md-content td {
+            border: 1px solid #3c3c3c;
+            padding: 5px 8px;
+            text-align: left;
+        }
+
+        #md-content th {
+            background: #2d2d2d;
+            color: #ccc;
+        }
+
+        #md-content blockquote {
+            border-left: 3px solid #555;
+            padding-left: 12px;
+            color: #888;
+            margin: 6px 0;
+        }
+
+        #md-content hr {
+            border: none;
+            border-top: 1px solid #3c3c3c;
+            margin: 12px 0;
+        }
+
+        #md-content a {
+            color: #5a9fd4;
+            text-decoration: none;
+        }
+
+        #md-content a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Tooltip ── */
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: #252526;
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 11px;
+            line-height: 1.65;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 100;
+            max-width: 280px;
+        }
+
+        /* ── Resizer ── */
+        #resizer {
+            width: 5px;
+            cursor: col-resize;
+            background: #3c3c3c;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        #resizer:hover,
+        #resizer.dragging {
+            background: #0e639c;
+        }
+
+        /* ── Normal view wrapper ── */
+        #normal-view {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── Chain view ── */
+        #chain-view {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        #chain-view details {
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        #chain-view details summary {
+            padding: 10px 14px;
+            cursor: pointer;
+            background: #252526;
+            font-size: 13px;
+            color: #ddd;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        #chain-view details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        #chain-view details summary::marker {
+            display: none;
+        }
+
+        #chain-view details summary:hover {
+            background: #2d2d2d;
+        }
+
+        #chain-view details[open] summary {
+            background: #2a2a3a;
+        }
+
+        .chain-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+
+        .chain-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chain-type-badge {
+            font-size: 10px;
+            color: #666;
+            white-space: nowrap;
+            padding-right: 4px;
+        }
+
+        #chain-view .chain-body {
+            padding: 14px 16px;
+        }
+
+        #chain-view .chain-body h1 {
+            font-size: 15px;
+            color: #ddd;
+            margin: 0 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        #chain-view .chain-body h2 {
+            font-size: 13px;
+            color: #ccc;
+            margin: 14px 0 5px;
+        }
+
+        #chain-view .chain-body h3 {
+            font-size: 12px;
+            color: #bbb;
+            margin: 10px 0 3px;
+        }
+
+        #chain-view .chain-body p {
+            margin: 5px 0;
+            line-height: 1.7;
+            font-size: 12px;
+        }
+
+        #chain-view .chain-body ul,
+        #chain-view .chain-body ol {
+            padding-left: 18px;
+            margin: 3px 0;
+        }
+
+        #chain-view .chain-body li {
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        #chain-view .chain-body code {
+            background: #2d2d2d;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        #chain-view .chain-body pre {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 6px 0;
+        }
+
+        #chain-view .chain-body pre code {
+            background: none;
+            padding: 0;
+        }
+
+        #chain-view .chain-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 6px 0;
+            font-size: 11px;
+        }
+
+        #chain-view .chain-body th,
+        #chain-view .chain-body td {
+            border: 1px solid #3c3c3c;
+            padding: 4px 7px;
+            text-align: left;
+        }
+
+        #chain-view .chain-body th {
+            background: #2d2d2d;
+            color: #ccc;
+        }
+
+        #chain-view .chain-body blockquote {
+            border-left: 3px solid #555;
+            padding-left: 10px;
+            color: #888;
+            margin: 5px 0;
+        }
+
+        #chain-view .chain-body hr {
+            border: none;
+            border-top: 1px solid #3c3c3c;
+            margin: 10px 0;
+        }
+
+        #chain-view .chain-body a {
+            color: #5a9fd4;
+            text-decoration: none;
+        }
+
+        #chain-view .chain-body a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Content header (tab switcher + meta) ── */
+        #content-header {
+            flex-shrink: 0;
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        #view-tabs {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #3c3c3c;
+            padding: 0 8px;
+            gap: 2px;
+        }
+
+        .view-tab {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #888;
+            font-size: 12px;
+            padding: 7px 12px;
+            cursor: pointer;
+            margin-bottom: -1px;
+        }
+
+        .view-tab:hover {
+            color: #ccc;
+        }
+
+        .view-tab.active {
+            color: #eee;
+            border-bottom-color: #0e639c;
+        }
+
+        #view-tab-placeholder {
+            margin-left: 8px;
+            font-size: 11px;
+            color: #444;
+            flex: 1;
+        }
+
+        #meta-info {
+            padding: 10px 14px;
+            display: none;
+        }
+
+        #meta-title {
+            font-size: 14px;
+            color: #eee;
+            margin: 0 0 6px;
+        }
+
+        #meta-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        /* ── Status flow (inline next to H1) ── */
+        .status-flow {
+            display: inline-flex;
+            align-items: center;
+            gap: 1px;
+            flex-wrap: wrap;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        .status-flow-step {
+            font-size: 10px;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .status-flow-step.current {
+            font-weight: 700;
+        }
+
+        .status-flow-arrow {
+            font-size: 9px;
+            color: #2a2a2a;
+            padding: 0 1px;
+        }
+
+        .status-flow-step-btn {
+            cursor: pointer;
+        }
+
+        .status-flow-step-btn:hover {
+            text-decoration: underline;
+            opacity: 0.85;
+        }
+
+        .chain-type-label {
+            font-size: 10px;
+            color: #555;
+            margin-right: 4px;
+        }
+
+        /* ── Left drawer strip ── */
+        #left-drawer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 28px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 6px 0;
+        }
+
+        .drawer-tab {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 10px 0;
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+            user-select: none;
+            letter-spacing: 0.05em;
+            width: 100%;
+            text-align: center;
+            transition: color 0.1s, background 0.1s;
+        }
+
+        .drawer-tab:hover {
+            color: #ccc;
+            background: #2d2d2d;
+        }
+
+        .drawer-tab.active {
+            color: #4fc3f7;
+            background: rgba(14, 99, 156, 0.15);
+            box-shadow: inset -2px 0 0 #0e639c;
+        }
+
+        /* ── Status filter panel ── */
+        #status-filter-panel {
+            position: absolute;
+            top: 8px;
+            left: 28px;
+            background: rgba(22, 22, 22, 0.98);
+            border: 1px solid #3c3c3c;
+            border-radius: 0 4px 4px 0;
+            padding: 10px 12px;
+            font-size: 11px;
+            z-index: 55;
+            overflow-y: auto;
+            min-width: 260px;
+            max-height: calc(100% - 16px);
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            align-items: start;
+            align-content: start;
+            row-gap: 4px;
+            column-gap: 10px;
+            transform: translateX(-100%) translateX(-28px);
+            transition: transform 0.2s ease;
+        }
+
+        #status-filter-panel.open {
+            transform: translateX(0);
+        }
+
+        .sf-type-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: #aaa;
+            white-space: nowrap;
+            padding-top: 2px;
+            cursor: pointer;
+        }
+
+        .sf-type-cb {
+            width: 13px;
+            height: 13px;
+            cursor: pointer;
+            accent-color: #0e639c;
+            flex-shrink: 0;
+        }
+
+        .sf-type-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .sf-statuses {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px 8px;
+        }
+
+        .sf-status-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            color: #888;
+            font-size: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .sf-status-item input[type=checkbox] {
+            width: 11px;
+            height: 11px;
+            cursor: pointer;
+            accent-color: #0e639c;
+        }
+
+        /* ── Preset panel ── */
+        #preset-panel {
+            position: absolute;
+            bottom: 0;
+            left: 28px;
+            background: rgba(22, 22, 22, 0.98);
+            border-right: 1px solid #3c3c3c;
+            border-top: 1px solid #3c3c3c;
+            padding: 10px 12px;
+            font-size: 11px;
+            z-index: 55;
+            min-width: 220px;
+            max-height: 50%;
+            overflow-y: auto;
+            display: block;
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+        }
+
+        #preset-panel.open {
+            transform: translateX(0);
+        }
+
+        #preset-save-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        #preset-name-input {
+            flex: 1;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 3px;
+            color: #ccc;
+            font-size: 11px;
+            padding: 3px 6px;
+        }
+
+        #preset-name-input:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .preset-list-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .preset-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-load-btn {
+            flex: 1;
+            text-align: left;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .preset-load-btn:hover {
+            background: #2d2d2d;
+            color: #eee;
+        }
+
+        .preset-del-btn {
+            background: none;
+            border: none;
+            color: #555;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 0 3px;
+            line-height: 1;
+        }
+
+        .preset-del-btn:hover {
+            color: #f87171;
+        }
+
+        #preset-empty {
+            color: #444;
+            font-size: 10px;
+            padding: 4px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="toolbar">
+        <h1>ドキュメントグラフ</h1>
+        <button id="btn-force" class="btn active">フォース</button>
+        <button id="btn-tree" class="btn">ツリー</button>
+        <input id="search" type="text" placeholder="ノードを検索…">
+        <select id="proj-filter" class="btn" style="cursor:pointer"></select>
+        <label style="font-size:11px;color:#888;white-space:nowrap;display:flex;align-items:center;gap:4px">
+            広がり
+            <input id="spread-slider" type="range" min="20" max="500" value="120" style="width:80px">
+        </label>
+        <span class="spacer"></span>
+        <span id="node-count"></span>
+    </div>
+
+    <div id="main">
+        <div id="graph-panel">
+            <div id="left-drawer">
+                <button id="drawer-tab-status" class="drawer-tab" title="状態フィルター">状態</button>
+                <div style="flex:1"></div>
+                <button id="drawer-tab-preset" class="drawer-tab" title="プリセット">保存</button>
+            </div>
+            <svg id="svg"></svg>
+            <div id="legend"></div>
+            <div id="status-filter-panel"></div>
+            <div id="preset-panel">
+                <div id="preset-save-row">
+                    <input id="preset-name-input" type="text" placeholder="名前を入力…">
+                    <button id="preset-save-btn" class="btn">保存</button>
+                </div>
+                <div id="preset-list">
+                    <div id="preset-empty">保存されたプリセットなし</div>
+                </div>
+            </div>
+        </div>
+        <div id="resizer"></div>
+        <div id="content-panel">
+            <div id="content-header">
+                <div id="view-tabs">
+                    <button id="tab-normal" class="view-tab active">通常</button>
+                    <button id="tab-chain" class="view-tab">チェーン</button>
+                    <span id="view-tab-placeholder">← ノードを選択</span>
+                </div>
+                <div id="meta-info">
+                    <h2 id="meta-title"></h2>
+                    <div id="meta-badges"></div>
+                </div>
+            </div>
+            <div id="normal-view">
+                <div id="file-body">
+                    <div id="md-placeholder">ノードをクリックしてください</div>
+                    <div id="md-content"></div>
+                </div>
+            </div>
+            <div id="chain-view"></div>
+        </div>
+    </div>
+
+    <div id="tooltip"></div>
+
+    <script>
+        // ===== Type color palette =====
+        const TYPE_COLORS = {
+            source: "#e8a228",
+            decision: "#a78bfa",
+            task_impl: "#60a5fa",
+            task_test: "#34d399",
+            spec_internal: "#4ade80",
+            spec_external: "#86efac",
+            design_internal: "#2dd4bf",
+            design_external: "#a5f3fc",
+            issue: "#f87171",
+            requirement: "#fbbf24",
+            trouble_shooting: "#9ca3af",
+        };
+
+        // 文書フローの横方向順 (0=左・最上流)
+        const TYPE_TIER = {
+            source: 0,
+            issue: 1,
+            decision: 2,
+            requirement: 3,
+            spec_external: 4,
+            spec_internal: 4,
+            design_external: 5,
+            design_internal: 5,
+            task_impl: 6,
+            task_test: 6,
+            trouble_shooting: 7,
+        };
+        const MAX_TIER = 7;
+
+        // ===== State =====
+        let allNodes = [], allEdges = [];
+        let typeLabels = {};
+        let schemaStatuses = {};
+        let mode = "force";
+        let selectedId = null;
+        let searchQuery = "";
+        let selectedProject = "all";
+        let selectedStatuses = new Map(); // type → Set<status>
+        let spreadStrength = 120;
+        let chainMode = false;
+        let simulation = null;
+
+        // ===== DOM refs =====
+        const svgEl = document.getElementById("svg");
+        const tooltip = document.getElementById("tooltip");
+        const metaInfo = document.getElementById("meta-info");
+        const metaTitle = document.getElementById("meta-title");
+        const metaBadges = document.getElementById("meta-badges");
+        const viewTabPlaceholder = document.getElementById("view-tab-placeholder");
+        const mdPlaceholder = document.getElementById("md-placeholder");
+        const mdContent = document.getElementById("md-content");
+        const normalView = document.getElementById("normal-view");
+        const chainView = document.getElementById("chain-view");
+
+        // ===== D3 base setup =====
+        const svg = d3.select("#svg");
+        const zoom = d3.zoom().scaleExtent([0.05, 10]).on("zoom", e => gMain.attr("transform", e.transform));
+        svg.call(zoom);
+        const gMain = svg.append("g");
+        const gLinks = gMain.append("g");
+        const gNodes = gMain.append("g");
+
+        // ===== Load graph data =====
+        async function loadGraph() {
+            const [graphRes, schemaRes] = await Promise.all([
+                fetch("/api/graph"),
+                fetch("/api/schema"),
+            ]);
+            const data = await graphRes.json();
+            schemaStatuses = await schemaRes.json();
+            allNodes = data.nodes;
+            allEdges = data.edges;
+            allNodes.forEach(n => { typeLabels[n.type] = n.typeLabel; });
+            // Populate project filter
+            const sel = document.getElementById("proj-filter");
+            sel.innerHTML = '<option value="all">すべてのプロジェクト</option>';
+            const projects = [...new Set(allNodes.map(n => n.project))].sort();
+            for (const p of projects) {
+                const opt = document.createElement("option");
+                opt.value = p; opt.textContent = p;
+                sel.appendChild(opt);
+            }
+            // Build status filter panel
+            buildStatusFilterPanel();
+            updateCount();
+            buildLegend();
+            renderForce();
+        }
+
+        function getFilteredData() {
+            let nodes = selectedProject === "all"
+                ? allNodes
+                : allNodes.filter(n => n.project === selectedProject);
+            nodes = nodes.filter(n => {
+                if (schemaStatuses[n.type]?.statuses?.length > 0) {
+                    const typeSet = selectedStatuses.get(n.type);
+                    if (!typeSet || typeSet.size === 0) return false;
+                    if (n.status && !typeSet.has(n.status)) return false;
+                }
+                return true;
+            });
+            const nodeIds = new Set(nodes.map(n => n.id));
+            const edges = allEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+            return { nodes, edges };
+        }
+
+        function updateCount() {
+            const { nodes, edges } = getFilteredData();
+            document.getElementById("node-count").textContent =
+                `${nodes.length} ノード  ${edges.length} リンク`;
+        }
+
+        function buildLegend() {
+            const { nodes } = getFilteredData();
+            const types = [...new Set(nodes.map(n => n.type))];
+            document.getElementById("legend").innerHTML = types.map(t =>
+                `<div class="lr"><span class="dot" style="background:${TYPE_COLORS[t] || "#888"}"></span>
+         <span>${typeLabels[t] || t}</span></div>`
+            ).join("");
+        }
+
+        // ===== Force-directed graph =====
+        function renderForce() {
+            mode = "force";
+            document.getElementById("btn-force").classList.add("active");
+            document.getElementById("btn-tree").classList.remove("active");
+            if (simulation) simulation.stop();
+            gLinks.selectAll("*").remove();
+            gNodes.selectAll("*").remove();
+
+            const W = svgEl.clientWidth, H = svgEl.clientHeight;
+
+            // Clone nodes for simulation (d3 mutates them)
+            const { nodes: filteredNodes, edges: filteredEdges } = getFilteredData();
+            const simNodes = filteredNodes.map(n => ({ ...n }));
+            const nodeById = new Map(simNodes.map(n => [n.id, n]));
+            const simLinks = filteredEdges
+                .filter(e => nodeById.has(e.source) && nodeById.has(e.target))
+                .map(e => ({ source: nodeById.get(e.source), target: nodeById.get(e.target) }));
+
+            simulation = d3.forceSimulation(simNodes)
+                .force("link", d3.forceLink(simLinks).id(d => d.id).distance(60).strength(0.8))
+                .force("charge", d3.forceManyBody().strength(-spreadStrength))
+                .force("x", d3.forceX(d => {
+                    const tier = TYPE_TIER[d.type] ?? 3;
+                    return 80 + tier * (W - 160) / MAX_TIER;
+                }).strength(0.5))
+                .force("y", d3.forceY(H / 2).strength(0.08))
+                .force("collision", d3.forceCollide(32));
+
+            const link = gLinks.selectAll("line")
+                .data(simLinks).enter().append("line").attr("class", "link");
+
+            const node = gNodes.selectAll("g.node")
+                .data(simNodes).enter().append("g").attr("class", "node")
+                .call(d3.drag()
+                    .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+                    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+                );
+
+            node.append("circle").attr("r", 8)
+                .attr("fill", d => TYPE_COLORS[d.type] || "#888");
+            node.append("text").attr("dy", 18).attr("text-anchor", "middle")
+                .text(d => d.id.length > 28 ? d.id.substring(0, 27) + "…" : d.id);
+
+            node
+                .on("mouseover", (e, d) => showTooltip(e, d))
+                .on("mousemove", moveTooltip)
+                .on("mouseout", hideTooltip)
+                .on("click", (e, d) => selectNode(d));
+
+            simulation.on("tick", () => {
+                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+
+            applySearch();
+            if (selectedId) applySelection(selectedId);
+        }
+
+        // ===== Tree graph =====
+        function renderTree() {
+            mode = "tree";
+            document.getElementById("btn-tree").classList.add("active");
+            document.getElementById("btn-force").classList.remove("active");
+            if (simulation) { simulation.stop(); simulation = null; }
+            gLinks.selectAll("*").remove();
+            gNodes.selectAll("*").remove();
+
+            const W = svgEl.clientWidth, H = svgEl.clientHeight;
+
+            // Build hierarchy: root → project → type → file
+            const { nodes: filteredNodes } = getFilteredData();
+            const projMap = {};
+            for (const n of filteredNodes) {
+                if (!projMap[n.project]) projMap[n.project] = {};
+                if (!projMap[n.project][n.type]) projMap[n.project][n.type] = [];
+                projMap[n.project][n.type].push(n);
+            }
+
+            const hierarchyData = {
+                id: "__root__", isRoot: true,
+                children: Object.entries(projMap).map(([proj, types]) => ({
+                    id: `proj:${proj}`, label: proj, isProject: true,
+                    children: Object.entries(types).map(([type, files]) => ({
+                        id: `type:${proj}:${type}`, label: typeLabels[type] || type, type, isType: true,
+                        children: files.map(f => ({ ...f, isLeaf: true })),
+                    })),
+                })),
+            };
+
+            const root = d3.hierarchy(hierarchyData);
+            const leafCount = root.leaves().length;
+            const treeH = Math.max(H - 40, leafCount * 18);
+
+            d3.tree().size([treeH, W - 320])(root);
+
+            // Horizontal layout: x↔y swap
+            const tx = d => d.y + 80;
+            const ty = d => d.x + 20;
+
+            // Reset zoom for tree
+            svg.call(zoom.transform, d3.zoomIdentity);
+
+            // Links
+            gLinks.selectAll("path.link").data(root.links()).enter()
+                .append("path").attr("class", "link")
+                .attr("d", d3.linkHorizontal().x(tx).y(ty));
+
+            // Nodes
+            const nodeG = gNodes.selectAll("g")
+                .data(root.descendants()).enter()
+                .append("g")
+                .attr("class", d => {
+                    if (d.data.isRoot) return "tree-root";
+                    if (d.data.isProject) return "tree-group proj";
+                    if (d.data.isType) return "tree-group type";
+                    return "tree-leaf";
+                })
+                .attr("transform", d => `translate(${tx(d)},${ty(d)})`);
+
+            nodeG.filter(d => !d.data.isRoot).append("circle")
+                .attr("r", d => d.data.isProject ? 9 : d.data.isType ? 7 : 6)
+                .attr("fill", d => {
+                    if (d.data.isProject) return "#666";
+                    return TYPE_COLORS[d.data.type] || "#888";
+                });
+
+            nodeG.filter(d => !d.data.isRoot).append("text")
+                .attr("dx", d => d.children ? -12 : 10)
+                .attr("dy", 4)
+                .attr("text-anchor", d => d.children ? "end" : "start")
+                .text(d => {
+                    if (d.data.isProject) return d.data.label;
+                    if (d.data.isType) return d.data.label;
+                    const s = d.data.id || "";
+                    return s.length > 30 ? s.substring(0, 29) + "…" : s;
+                });
+
+            nodeG.filter(d => d.data.isLeaf)
+                .on("mouseover", (e, d) => showTooltip(e, d.data))
+                .on("mousemove", moveTooltip)
+                .on("mouseout", hideTooltip)
+                .on("click", (e, d) => selectNode(d.data));
+
+            applySearch();
+            if (selectedId) applySelection(selectedId);
+        }
+
+        // ===== Selection =====
+        function applySelection(id) {
+            if (mode === "force") {
+                gNodes.selectAll("g.node").classed("selected", d => d.id === id);
+                // Highlight connected edges
+                gLinks.selectAll("line.link").classed("highlighted",
+                    d => d.source.id === id || d.target.id === id);
+            } else {
+                gNodes.selectAll("g.tree-leaf").classed("selected", d => d.data.id === id);
+            }
+        }
+
+        async function selectNode(d) {
+            selectedId = d.id;
+            applySelection(d.id);
+
+            // Show meta header
+            viewTabPlaceholder.style.display = "none";
+            metaInfo.style.display = "block";
+            metaTitle.textContent = d.id;
+            metaBadges.innerHTML =
+                `<span class="badge type" style="background:${TYPE_COLORS[d.type] || "#555"}">${d.typeLabel || d.type}</span>` +
+                `<span class="badge proj">${d.project}</span>`;
+
+            if (chainMode) { showChain(d); return; }
+
+            // Normal view
+            normalView.style.display = "flex";
+            chainView.style.display = "none";
+
+            // File content
+            mdPlaceholder.style.display = "none";
+            mdContent.style.display = "block";
+            mdContent.innerHTML = '<p style="color:#555;font-size:12px">読み込み中…</p>';
+
+            try {
+                const res = await fetch("/api/file?path=" + encodeURIComponent(d.path));
+                if (!res.ok) throw new Error(`HTTP ${res.status}: ${d.path}`);
+                const text = await res.text();
+                const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+                let html = marked.parse(body);
+                // Inject status flow after first H1
+                const flowHtml = buildStatusFlow(d.type, d.status, d.path);
+                if (flowHtml) {
+                    html = html.replace(/(<h1[^>]*>)([\s\S]*?)(<\/h1>)/, `$1$2 ${flowHtml}$3`);
+                }
+                mdContent.innerHTML = html;
+            } catch (e) {
+                console.error("file load error:", e);
+                mdContent.innerHTML = `<p style="color:#f87171">読み込みエラー: ${e?.message || e}</p>`;
+            }
+        }
+
+        // ===== Chain helpers =====
+        function getConnectedNodes(startId) {
+            const { edges } = getFilteredData();
+            const visited = new Set([startId]);
+            const queue = [startId];
+            while (queue.length) {
+                const cur = queue.shift();
+                for (const e of edges) {
+                    const s = typeof e.source === "object" ? e.source.id : e.source;
+                    const t = typeof e.target === "object" ? e.target.id : e.target;
+                    if (s === cur && !visited.has(t)) { visited.add(t); queue.push(t); }
+                    if (t === cur && !visited.has(s)) { visited.add(s); queue.push(s); }
+                }
+            }
+            return allNodes.filter(n => visited.has(n.id))
+                .sort((a, b) => (TYPE_TIER[a.type] ?? 99) - (TYPE_TIER[b.type] ?? 99));
+        }
+
+        async function showChain(d) {
+            normalView.style.display = "none";
+            chainView.style.display = "flex";
+            chainView.innerHTML = '<div style="padding:16px;color:#555;font-size:12px">読み込み中…</div>';
+
+            const nodes = getConnectedNodes(d.id);
+            const items = await Promise.all(nodes.map(async n => {
+                try {
+                    const res = await fetch("/api/file?path=" + encodeURIComponent(n.path));
+                    if (!res.ok) throw new Error(res.status);
+                    const text = await res.text();
+                    const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+                    return { n, body };
+                } catch { return { n, body: null }; }
+            }));
+
+            chainView.innerHTML = items.map(({ n, body }) => {
+                const isSelected = n.id === d.id;
+                const c = TYPE_COLORS[n.type] || "#888";
+                const h1m = body?.match(/^#\s+(.+)$/m);
+                const h1 = h1m ? h1m[1] : n.id;
+                const rest = body ? body.replace(/^#\s+.+\r?\n?/m, "") : "";
+                const flowHtml = buildStatusFlow(n.type, n.status, n.path);
+                const typeLabel = n.typeLabel || n.type;
+                return `<details${isSelected ? " open" : ""}>
+                    <summary style="border-left:3px solid ${c}">
+                        <span class="chain-dot" style="background:${c}"></span>
+                        <span class="chain-title">${h1}</span>
+                        <span class="chain-type-badge"><span class="chain-type-label">${typeLabel}</span>${flowHtml}</span>
+                    </summary>
+                    <div class="chain-body">${body ? marked.parse(rest) : '<p style="color:#f87171">読み込みエラー</p>'}</div>
+                </details>`;
+            }).join("");
+        }
+
+        // ===== Status flow builder =====
+        // path: ファイルのrelativeパス。指定するとステップがクリック可能になる
+        function buildStatusFlow(type, currentStatus, path) {
+            const typeDef = schemaStatuses[type];
+            const color = TYPE_COLORS[type] || "#888";
+            if (!typeDef || !typeDef.statuses || !typeDef.statuses.length) {
+                return currentStatus
+                    ? `<span class="status-flow"><span class="status-flow-step current" style="color:${color}">${currentStatus}</span></span>`
+                    : "";
+            }
+            const steps = typeDef.statuses.map((s, i) => {
+                const isCurrent = s === currentStatus;
+                const arrow = i > 0 ? `<span class="status-flow-arrow">→</span>` : "";
+                const styleAttr = isCurrent ? ` style="color:${color}"` : "";
+                const cls = `status-flow-step${isCurrent ? " current" : ""}${path && !isCurrent ? " status-flow-step-btn" : ""}`;
+                const dataAttrs = path && !isCurrent ? ` data-path="${path}" data-newstatus="${s}"` : "";
+                return `${arrow}<span class="${cls}"${styleAttr}${dataAttrs}>${s}</span>`;
+            }).join("");
+            return `<span class="status-flow">${steps}</span>`;
+        }
+
+        // ===== Status change =====
+        async function changeStatus(path, newStatus) {
+            const node = allNodes.find(n => n.path === path);
+            const label = node ? node.id : path;
+            if (!confirm(`「${label}」のステータスを「${newStatus}」に変更しますか？`)) return;
+            const res = await fetch("/api/status", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path, status: newStatus }),
+            });
+            if (!res.ok) { alert("ステータスの変更に失敗しました"); return; }
+            if (node) node.status = newStatus;
+            const curNode = allNodes.find(n => n.id === selectedId);
+            if (curNode) selectNode(curNode);
+        }
+
+        // ===== Status filter panel =====
+        function buildStatusFilterPanel() {
+            const panel = document.getElementById("status-filter-panel");
+            const types = Object.keys(schemaStatuses)
+                .filter(t => schemaStatuses[t].statuses && schemaStatuses[t].statuses.length)
+                .sort((a, b) => (TYPE_TIER[a] ?? 99) - (TYPE_TIER[b] ?? 99));
+
+            // Initialize: all types and statuses selected
+            selectedStatuses = new Map();
+            for (const t of types) {
+                selectedStatuses.set(t, new Set(schemaStatuses[t].statuses));
+            }
+
+            // Type rows: each type → 2 grid cells (label+type-cb | status checkboxes)
+            const typeRows = types.map(t => {
+                const color = TYPE_COLORS[t] || "#888";
+                const label = schemaStatuses[t].label || typeLabels[t] || t;
+                const statuses = schemaStatuses[t].statuses;
+                const checks = statuses.map(s =>
+                    `<label class="sf-status-item">
+                        <input type="checkbox" data-type="${t}" data-status="${s}" checked>
+                        ${s}
+                    </label>`
+                ).join("");
+                return `<label class="sf-type-label" data-type="${t}">
+                        <input type="checkbox" class="sf-type-cb" data-type="${t}" checked>
+                        <span class="sf-type-dot" style="background:${color}"></span>${label}
+                    </label>
+                    <div class="sf-statuses" data-type="${t}">${checks}</div>`;
+            }).join("");
+
+            panel.innerHTML = typeRows;
+
+            // Per-type master checkboxes
+            panel.querySelectorAll('.sf-type-cb').forEach(typeCb => {
+                const t = typeCb.dataset.type;
+                const statusCbs = panel.querySelectorAll(`.sf-status-item input[data-type="${t}"]`);
+                typeCb.addEventListener("change", function () {
+                    if (this.checked) {
+                        selectedStatuses.set(t, new Set([...statusCbs].map(cb => cb.dataset.status)));
+                        statusCbs.forEach(cb => { cb.checked = true; });
+                    } else {
+                        selectedStatuses.delete(t);
+                        statusCbs.forEach(cb => { cb.checked = false; });
+                    }
+                    updateCount(); buildLegend();
+                    if (mode === "force") renderForce(); else renderTree();
+                });
+            });
+
+            // Individual status checkboxes
+            panel.querySelectorAll('.sf-status-item input[type=checkbox]').forEach(cb => {
+                const t = cb.dataset.type;
+                const typeCb = panel.querySelector(`.sf-type-cb[data-type="${t}"]`);
+                const siblingCbs = panel.querySelectorAll(`.sf-status-item input[data-type="${t}"]`);
+                cb.addEventListener("change", function () {
+                    if (!selectedStatuses.has(t)) selectedStatuses.set(t, new Set());
+                    const typeSet = selectedStatuses.get(t);
+                    if (this.checked) typeSet.add(this.dataset.status);
+                    else typeSet.delete(this.dataset.status);
+                    // Sync type checkbox
+                    const checkedCount = [...siblingCbs].filter(c => c.checked).length;
+                    if (checkedCount === 0) {
+                        selectedStatuses.delete(t);
+                        typeCb.checked = false;
+                        typeCb.indeterminate = false;
+                    } else {
+                        typeCb.checked = checkedCount === siblingCbs.length;
+                        typeCb.indeterminate = checkedCount < siblingCbs.length;
+                    }
+                    updateCount(); buildLegend();
+                    if (mode === "force") renderForce(); else renderTree();
+                });
+            });
+        }
+
+        function setChainMode(on) {
+            chainMode = on;
+            document.getElementById("tab-normal").classList.toggle("active", !on);
+            document.getElementById("tab-chain").classList.toggle("active", on);
+            if (!on) {
+                chainView.style.display = "none";
+                normalView.style.display = "flex";
+                // Re-show current node in normal view
+                if (selectedId) {
+                    const node = allNodes.find(n => n.id === selectedId);
+                    if (node) selectNode(node);
+                }
+            } else {
+                // Re-show current node in chain view
+                if (selectedId) {
+                    const node = allNodes.find(n => n.id === selectedId);
+                    if (node) showChain(node);
+                } else {
+                    normalView.style.display = "none";
+                    chainView.style.display = "flex";
+                    chainView.innerHTML = '<div style="padding:16px;color:#555;font-size:12px">ノードを選択してください</div>';
+                }
+            }
+        }
+
+        // ===== Search =====
+        function applySearch() {
+            const q = searchQuery.toLowerCase();
+            if (mode === "force") {
+                gNodes.selectAll("g.node").classed("dimmed", d => !!q && !matches(d, q));
+            } else {
+                gNodes.selectAll("g.tree-leaf").classed("dimmed", d => !!q && !matches(d.data, q));
+            }
+        }
+
+        function matches(d, q) {
+            return (d.id || "").toLowerCase().includes(q) ||
+                (d.fmId || "").toLowerCase().includes(q) ||
+                (d.typeLabel || "").toLowerCase().includes(q) ||
+                (d.status || "").toLowerCase().includes(q);
+        }
+
+        // ===== Tooltip =====
+        function showTooltip(e, d) {
+            tooltip.innerHTML =
+                `<strong>${d.fmId || d.id}</strong><br>` +
+                `${d.typeLabel || d.type}${d.status ? " · " + d.status : ""}<br>` +
+                `<span style="color:#666;font-size:10px">${d.project}</span>`;
+            tooltip.style.opacity = "1";
+            moveTooltip(e);
+        }
+        function moveTooltip(e) {
+            tooltip.style.left = (e.clientX + 14) + "px";
+            tooltip.style.top = (e.clientY - 6) + "px";
+        }
+        function hideTooltip() { tooltip.style.opacity = "0"; }
+
+        // ===== Event listeners =====
+        document.getElementById("btn-force").addEventListener("click", () => { if (mode !== "force") renderForce(); });
+        document.getElementById("btn-tree").addEventListener("click", () => { if (mode !== "tree") renderTree(); });
+        document.getElementById("tab-normal").addEventListener("click", () => { if (chainMode) setChainMode(false); });
+        document.getElementById("tab-chain").addEventListener("click", () => { if (!chainMode) setChainMode(true); });
+        document.getElementById("search").addEventListener("input", function () { searchQuery = this.value; applySearch(); });
+        document.getElementById("proj-filter").addEventListener("change", function () {
+            selectedProject = this.value;
+            updateCount();
+            buildLegend();
+            if (mode === "force") renderForce(); else renderTree();
+        });
+        document.getElementById("drawer-tab-status").addEventListener("click", function () {
+            const panel = document.getElementById("status-filter-panel");
+            panel.classList.toggle("open");
+            this.classList.toggle("active", panel.classList.contains("open"));
+        });
+        document.getElementById("drawer-tab-preset").addEventListener("click", function () {
+            const panel = document.getElementById("preset-panel");
+            panel.classList.toggle("open");
+            this.classList.toggle("active", panel.classList.contains("open"));
+            if (panel.classList.contains("open")) loadPresetList();
+        });
+        document.getElementById("preset-save-btn").addEventListener("click", async function () {
+            const nameInput = document.getElementById("preset-name-input");
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.focus(); return; }
+            const res = await fetch("/api/presets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, selectedStatuses: Object.fromEntries([...selectedStatuses].map(([t, s]) => [t, [...s]])) }),
+            });
+            if (res.ok) { nameInput.value = ""; loadPresetList(); }
+            else { alert("保存に失敗しました"); }
+        });
+
+        // ===== Preset management =====
+        async function loadPresetList() {
+            const list = document.getElementById("preset-list");
+            list.innerHTML = "";
+            try {
+                const res = await fetch("/api/presets");
+                const presets = await res.json();
+                if (!presets.length) {
+                    list.innerHTML = '<div id="preset-empty">保存されたプリセットなし</div>';
+                    return;
+                }
+                for (const p of presets) {
+                    const row = document.createElement("div");
+                    row.className = "preset-list-item";
+                    const loadBtn = document.createElement("button");
+                    loadBtn.className = "preset-load-btn";
+                    loadBtn.textContent = p.name;
+                    const lines = Object.entries(p.selectedStatuses || {})
+                        .map(([t, statuses]) => `${schemaStatuses[t]?.label || t}: ${statuses.join(", ")}`);
+                    loadBtn.title = lines.length ? lines.join("\n") : "（空）";
+                    loadBtn.addEventListener("click", () => applyPreset(p));
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "preset-del-btn";
+                    delBtn.textContent = "✕";
+                    delBtn.title = "削除";
+                    delBtn.addEventListener("click", async () => {
+                        if (!confirm(`「${p.name}」を削除しますか？`)) return;
+                        await fetch("/api/presets?name=" + encodeURIComponent(p.name), { method: "DELETE" });
+                        loadPresetList();
+                    });
+                    row.appendChild(loadBtn);
+                    row.appendChild(delBtn);
+                    list.appendChild(row);
+                }
+            } catch {
+                list.innerHTML = '<div id="preset-empty">読み込みエラー</div>';
+            }
+        }
+
+        function applyPreset(preset) {
+            selectedStatuses = new Map();
+            for (const [t, statuses] of Object.entries(preset.selectedStatuses || {})) {
+                selectedStatuses.set(t, new Set(statuses));
+            }
+            // Sync checkboxes in status-filter-panel
+            const panel = document.getElementById("status-filter-panel");
+            panel.querySelectorAll('.sf-status-item input[type=checkbox]').forEach(cb => {
+                const typeSet = selectedStatuses.get(cb.dataset.type);
+                cb.checked = typeSet !== undefined && typeSet.has(cb.dataset.status);
+            });
+            panel.querySelectorAll('.sf-type-cb').forEach(typeCb => {
+                const t = typeCb.dataset.type;
+                const typeSet = selectedStatuses.get(t);
+                if (!typeSet || typeSet.size === 0) {
+                    typeCb.checked = false;
+                    typeCb.indeterminate = false;
+                } else {
+                    const sibs = panel.querySelectorAll(`.sf-status-item input[data-type="${t}"]`);
+                    const cnt = [...sibs].filter(c => c.checked).length;
+                    typeCb.checked = cnt === sibs.length;
+                    typeCb.indeterminate = cnt > 0 && cnt < sibs.length;
+                }
+            });
+            updateCount(); buildLegend();
+            if (mode === "force") renderForce(); else renderTree();
+        }
+
+        document.getElementById("spread-slider").addEventListener("input", function () {
+            spreadStrength = parseInt(this.value);
+            if (mode === "force" && simulation) {
+                simulation.force("charge", d3.forceManyBody().strength(-spreadStrength));
+                simulation.alpha(0.3).restart();
+            }
+        });
+
+        // ===== Resizer =====
+        (function () {
+            const resizer = document.getElementById("resizer");
+            const panel = document.getElementById("content-panel");
+            let startX, startW;
+            resizer.addEventListener("mousedown", e => {
+                startX = e.clientX;
+                startW = panel.offsetWidth;
+                resizer.classList.add("dragging");
+                document.body.style.cssText += ";cursor:col-resize;user-select:none";
+                const onMove = e => {
+                    const w = Math.max(200, Math.min(1200, startW + (startX - e.clientX)));
+                    panel.style.width = w + "px";
+                    panel.style.minWidth = w + "px";
+                };
+                const onUp = () => {
+                    resizer.classList.remove("dragging");
+                    document.body.style.cursor = "";
+                    document.body.style.userSelect = "";
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                };
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+            });
+        })();
+
+        // ===== Status step click handlers =====
+        mdContent.addEventListener("click", e => {
+            const step = e.target.closest(".status-flow-step-btn");
+            if (!step) return;
+            e.stopPropagation();
+            changeStatus(step.dataset.path, step.dataset.newstatus);
+        });
+        chainView.addEventListener("click", e => {
+            const step = e.target.closest(".status-flow-step-btn");
+            if (!step) return;
+            e.stopPropagation();
+            changeStatus(step.dataset.path, step.dataset.newstatus);
+        });
+
+        // ===== Boot =====
+        loadGraph();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,72 @@
+{
+    "key": "source",
+    "label": "Source（情報源）",
+    "prefix": "SRC",
+    "idExample": "SRC-MTG-yyyyMMdd-01",
+    "dirParts": [ "internal", "1_sources" ],
+    "numbering": "source",
+    "defaultStatus": "NEW",
+    "statuses": [
+        { "code": "NEW", "label": "新規（中途半端）" },
+        { "code": "TRIAGED", "label": "仕分け済み" },
+        { "code": "PROMOTED", "label": "昇格済み（ISSUE/TASKに変換）" },
+        { "code": "DROPPED", "label": "破棄" }
+    ],
+    "sourceTypes": [
+        { "code": "MTG", "label": "会議・ミーティング" },
+        { "code": "DEV", "label": "開発・実装" },
+        { "code": "IDEA", "label": "アイデア・提案" },
+        { "code": "BUG", "label": "バグ報告" },
+        { "code": "REQ", "label": "要件・要望" },
+        { "code": "DOC", "label": "ドキュメント" }
+    ],
+    "schema": {
+        "required": [ "id", "status" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^SRC-(MTG|DEV|IDEA|BUG|REQ|DOC)-\\d{8}-\\d{2}$" },
+            "status": { "type": "string", "enum": [ "NEW", "TRIAGED", "PROMOTED", "DROPPED" ] }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "tags:",
+        "  - SRC",
+        "status: {{status}}",
+        "updated_at: {{date}}",
+        "---",
+        "",
+        "# {{id}}_{{title}}",
+        "",
+        "## 内容（生データ）",
+        "- ",
+        "",
+        "## 背景・文脈",
+        "- ",
+        "",
+        "## 発生タイミング",
+        "- ",
+        "",
+        "## 関係者",
+        "- ",
+        "",
+        "## 期待・意図（あれば）",
+        "- ",
+        "",
+        "## 気づき・メモ",
+        "- ",
+        "",
+        "## 次アクション候補",
+        "- Issue化する",
+        "- Decision検討",
+        "- Task化",
+        "- 保留",
+        "",
+        "## 内容（整理後）",
+        "- ",
+        "",
+        "## 関連リンク",
+        "- ",
+        ""
+    ]
+}

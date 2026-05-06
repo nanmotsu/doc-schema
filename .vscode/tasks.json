@@ -1,0 +1,171 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "フロントマター検証",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/validate.mjs"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": {
+                "owner": "frontmatter",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "フロントマター検証（現在のファイル）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/validate.mjs",
+                "${file}"
+            ],
+            "problemMatcher": {
+                "owner": "frontmatter",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ドキュメント新規作成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/create.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            }
+        },
+        {
+            "label": "ドキュメント一覧",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/list.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "ドキュメント一括作成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/batch.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            }
+        },
+        {
+            "label": "ドキュメントグラフ（サーバー）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/graph/graph.mjs"
+            ],
+            "problemMatcher": [ ],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "silent",
+                "panel": "dedicated",
+                "focus": false
+            }
+        },
+        {
+            "label": "ドキュメントグラフ（サーバー停止）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Get-NetTCPConnection -LocalPort 3333 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Host 'stopped'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "プロジェクト新規作成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/new_project.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            }
+        },
+        {
+            "label": "Obsidianテンプレート生成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/000_schema/scripts/gen_obsidian_templates.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "ドキュメントグラフ（ブラウザで開く）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Start-Process 'http://localhost:3333'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "never",
+                "panel": "shared"
+            }
+        }
+    ]
+}

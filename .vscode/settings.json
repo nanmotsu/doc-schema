@@ -1,0 +1,24 @@
+{
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+        "editor.formatOnSave": true
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+        "editor.formatOnSave": true
+    },
+    "[markdown]": {
+        "editor.quickSuggestions": {
+            "other": "on",
+            "comments": "off",
+            "strings": "on"
+        },
+        "editor.snippetSuggestions": "top",
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.tabCompletion": "on"
+    },
+    "json.format.keepLines": true,
+    "foam.files.exclude": [
+        "999_フォルダ構成について/**",
+    ]
+}

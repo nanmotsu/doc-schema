@@ -1,0 +1,44 @@
+{
+    "Status: Source": {
+        "scope": "markdown,yaml",
+        "prefix": "src",
+        "body": [ "${1|NEW,TRIAGED,PROMOTED,DROPPED|}" ],
+        "description": "SRC status 選択"
+    },
+    "Status: Decision": {
+        "scope": "markdown,yaml",
+        "prefix": "dec",
+        "body": [ "${1|UNFINISHED,DRAFT,ACTIVE,SUPERSEDED,DEPRECATED|}" ],
+        "description": "DEC status 選択"
+    },
+    "Status: Task": {
+        "scope": "markdown,yaml",
+        "prefix": "task",
+        "body": [ "${1|UNFINISHED,TODO,DOING,BLOCKED,DONE,CANCELLED|}" ],
+        "description": "TASK status 選択"
+    },
+    "Status: Test": {
+        "scope": "markdown,yaml",
+        "prefix": "test",
+        "body": [ "${1|UNFINISHED,DRAFT,READY,PASSED,FAILED,DEPRECATED|}" ],
+        "description": "TEST status 選択"
+    },
+    "Status: Issue": {
+        "scope": "markdown,yaml",
+        "prefix": "issue",
+        "body": [ "${1|UNFINISHED,OPEN,INVESTIGATING,RESOLVED,CLOSED|}" ],
+        "description": "ISSUE status 選択"
+    },
+    "Status: Spec": {
+        "scope": "markdown,yaml",
+        "prefix": "spec",
+        "body": [ "${1|UNFINISHED,DRAFT,ACTIVE,NEED_UPDATE,DEPRECATED|}" ],
+        "description": "SPEC / DESIGN status 選択"
+    },
+    "Status: Requirement": {
+        "scope": "markdown,yaml",
+        "prefix": "req",
+        "body": [ "${1|UNFINISHED,DRAFT,ACTIVE,DEPRECATED|}" ],
+        "description": "REQ status 選択"
+    }
+}
