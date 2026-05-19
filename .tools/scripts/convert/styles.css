@@ -1,0 +1,292 @@
+/* ============================================================
+   Markdown 文書 スタイルシート（構造定義のみ）
+   CSS変数・DSLクラス・カウンター・@page は build.mjs がスキーマから生成する。
+   ============================================================ */
+
+/* === リセット ===================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* === ベース ======================================================= */
+body {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+    font-size: var(--body-size, 16px);
+    line-height: var(--line-height, 1.8);
+    color: var(--color-text, #333);
+    padding: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* === 見出し ======================================================= */
+h1,
+h2,
+h3,
+h4 {
+    margin-top: 0.8em;
+    margin-bottom: 0.5em;
+    line-height: 1.3;
+    font-weight: bold;
+}
+
+h1 {
+    font-size: var(--h1-size, 28px);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.25em;
+}
+
+h2 {
+    font-size: var(--h2-size, 24px);
+    border-bottom: 1px solid var(--color-border, #bdc3c7);
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: var(--h3-size, 20px);
+}
+
+h4 {
+    font-size: var(--body-size, 16px);
+}
+
+/* === 本文要素 ===================================================== */
+p {
+    margin: var(--gap-paragraph) 0;
+}
+
+/* DSLブロック内の <p> はブロック自身の padding に任せてマージンを消す */
+.warning p,
+.center p,
+.right p,
+.large p,
+.red p {
+    margin: 0;
+}
+
+/* figure 内の <p> — marked が ![alt](src) を <p><img> にラップするため個別処理 */
+/* margin を消し、line-height: 0 でインライン画像のベースライン余白も除去する   */
+.figure p {
+    margin: 0;
+    line-height: 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+    margin: 0.5em 0;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+blockquote {
+    border-left: 4px solid var(--color-border);
+    margin: 0.5em 0;
+    padding: 0 1em;
+    color: var(--color-subtle);
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 2em 0;
+}
+
+a {
+    color: var(--color-link, #2980b9);
+}
+
+/* === コード ======================================================= */
+code {
+    font-family: 'Consolas', 'Noto Sans Mono', 'Courier New', monospace;
+    background: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+
+pre {
+    background: var(--color-pre-bg, #f6f8fa);
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    margin: 1em 0;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+
+/* === 画像 ========================================================= */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* === テーブル ===================================================== */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--table-margin, 1.5em 0);
+}
+
+th,
+td {
+    border: var(--table-cell-border, 1px solid #bdc3c7);
+    padding: var(--table-cell-padding, 0.45em 0.8em);
+    text-align: left;
+}
+
+th {
+    background: var(--color-th-bg);
+    font-weight: bold;
+}
+
+/* ============================================================
+   表題ページ
+   ============================================================ */
+.title-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--page-content-height, 277mm);
+    text-align: center;
+    padding: 40px;
+    box-sizing: border-box;
+    break-after: page;
+    page-break-after: always;
+}
+
+.title-page .doc-title {
+    font-size: var(--title-size, 36px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.title-page .doc-subtitle {
+    font-size: var(--subtitle-size, 18px);
+    color: var(--color-subtle, #555);
+    margin-top: 0.6em;
+    margin-bottom: 0;
+}
+
+.title-page .cover-image {
+    display: block;
+    max-height: var(--cover-max-height, 360px);
+    max-width: 100%;
+    margin: 1.5em auto 0;
+    object-fit: cover;
+}
+
+/* ============================================================
+   改訂履歴ページ
+   ============================================================ */
+.revision-history {
+    break-after: page;
+    page-break-after: always;
+    padding: 2em 0;
+}
+
+.revision-history-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.2em;
+    margin: 0 0 1em;
+}
+
+.revision-history .col-version {
+    width: 8%;
+}
+
+.revision-history .col-date {
+    width: 14%;
+}
+
+.revision-history .col-author {
+    width: 14%;
+}
+
+.revision-history .col-description {
+    width: 64%;
+}
+
+/* ============================================================
+   目次
+   ============================================================ */
+.toc {
+    break-after: page;
+    page-break-after: always;
+    padding: 2em 0;
+}
+
+.toc-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0 0 1em;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.toc li {
+    padding: 0.3em 0;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.toc a {
+    color: var(--color-text, #333);
+    text-decoration: none;
+}
+
+.toc a:hover {
+    color: var(--color-link, #0066cc);
+    text-decoration: underline;
+}
+
+/* ============================================================
+   印刷 / PDF
+   ============================================================ */
+@media print {
+    body {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    h1,
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+
+    table,
+    figure,
+    pre,
+    .warning {
+        page-break-inside: avoid;
+    }
+}

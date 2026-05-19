@@ -1,16 +1,17 @@
 # Node.js
-000_schema/node_modules/
+.tools/node_modules/
 
 # ログ（作成履歴）
-000_schema/logs/*.jsonl
-000_schema/logs/*.log
+.tools/logs/*.jsonl
+.tools/logs/*.log
 
 # グラフのプリセット保存ファイル
-000_schema/scripts/graph/presets/*.json
+.tools/scripts/document/graph/presets/*.json
 
 # 製作物
 997_作成元データ/.drawio/**
 997_作成元データ/.Excalidraw/**
+997_作成元データ/assets/**
 998_knowledge/**
 
 # OS
@@ -24,4 +25,3 @@ Desktop.ini
 
 # Obsidian
 .obsidian/
-000_schema/obsidian_template/**

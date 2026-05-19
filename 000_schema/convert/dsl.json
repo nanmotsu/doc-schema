@@ -1,0 +1,158 @@
+{
+    "$comment": "DSLブロック定義 - :::name ... ::: の変換ルール。build.mjs が読み込む。",
+    "blocks": [
+        {
+            "name": "warning",
+            "element": "div",
+            "class": "warning",
+            "selfClosing": false,
+            "styles": {
+                "color": "#e67e00",
+                "background": "#fff8f0",
+                "border-left": "4px solid #e67e00",
+                "padding": "0.2em 0.5em",
+                "margin": "0.5em 0",
+                "border-radius": "0 4px 4px 0",
+                "max-width": "100%"
+            },
+            "snippet": {
+                "prefix": "warn",
+                "description": "警告ブロック",
+                "body": [ ":::warning", "${1:内容}", ":::" ]
+            }
+        },
+        {
+            "name": "center",
+            "element": "div",
+            "class": "center",
+            "selfClosing": false,
+            "styles": {
+                "text-align": "center"
+            },
+            "snippet": {
+                "prefix": "center",
+                "description": "中央揃え",
+                "body": [ ":::center", "${1:内容}", ":::" ]
+            }
+        },
+        {
+            "name": "right",
+            "element": "div",
+            "class": "right",
+            "selfClosing": false,
+            "styles": {
+                "text-align": "right"
+            },
+            "snippet": {
+                "prefix": "right",
+                "description": "右寄せ",
+                "body": [ ":::right", "${1:内容}", ":::" ]
+            }
+        },
+        {
+            "name": "large",
+            "element": "div",
+            "class": "large",
+            "selfClosing": false,
+            "styles": {
+                "font-size": "24px"
+            },
+            "snippet": {
+                "prefix": "large",
+                "description": "大きい文字",
+                "body": [ ":::large", "${1:内容}", ":::" ]
+            }
+        },
+        {
+            "name": "red",
+            "element": "div",
+            "class": "red",
+            "selfClosing": false,
+            "styles": {
+                "color": "#cc0000"
+            },
+            "snippet": {
+                "prefix": "red",
+                "description": "赤文字",
+                "body": [ ":::red", "${1:内容}", ":::" ]
+            }
+        },
+        {
+            "name": "pagebreak",
+            "element": "div",
+            "class": "page-break",
+            "selfClosing": true,
+            "styles": {
+                "page-break-before": "always",
+                "break-before": "page"
+            },
+            "snippet": {
+                "prefix": "pb",
+                "description": "ページ区切り",
+                "body": [ ":::pagebreak", ":::" ]
+            }
+        },
+        {
+            "name": "figure",
+            "element": "figure",
+            "class": "figure",
+            "selfClosing": false,
+            "counter": "figure",
+            "captionPosition": "bottom",
+            "captionPrefix": "図",
+            "defaults": {
+                "width": "100%",
+                "height": "auto"
+            },
+            "styles": {
+                "margin": "0 0",
+                "text-align": "center"
+            },
+            "captionStyles": {
+                "font-size": "var(--small-size)",
+                "color": "#555",
+                "margin-top": "0",
+                "margin-bottom": "0"
+            },
+            "snippet": {
+                "prefix": "fig",
+                "description": "図（キャプション付き・internal起点）",
+                "body": [ ":::figure ${4:width=80%} origin=internal", "![${1:alt}](${2:path})", "", "${3:キャプション}", ":::" ]
+            },
+            "snippetExt": {
+                "prefix": "fige",
+                "description": "図（キャプション付き・external起点）",
+                "body": [ ":::figure ${4:width=80%} origin=external", "![${1:alt}](${2:path})", "", "${3:キャプション}", ":::" ]
+            }
+        },
+        {
+            "name": "table",
+            "element": "div",
+            "class": "table-wrapper",
+            "selfClosing": false,
+            "counter": "table",
+            "captionPosition": "top",
+            "captionPrefix": "表",
+            "showBorder": true,
+            "border": "#bdc3c7",
+            "thBg": "#f0f0f0",
+            "cellPadding": "0.45em 0.8em",
+            "tableMargin": "0 0",
+            "styles": {
+                "margin": "0 0"
+            },
+            "captionStyles": {
+                "font-size": "var(--small-size)",
+                "color": "#555",
+                "margin-bottom": "0.5em",
+                "font-weight": "bold",
+                "text-align": "center"
+            },
+            "snippet": {
+                "prefix": "tbl",
+                "description": "表（キャプション付き）",
+                "body": [ ":::table", "${1:表タイトル}", "", "| ${2:列1} | ${3:列2} |", "| --- | --- |", "| ${4:} | ${5:} |", ":::" ]
+            }
+        }
+    ]
+}

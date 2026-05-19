@@ -2,11 +2,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "フロントマター検証",
+            "label": "プロジェクト: フロントマター検証",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/validate.mjs"
+                "${workspaceFolder}/.tools/scripts/project/validate.mjs"
             ],
             "group": {
                 "kind": "build",
@@ -30,11 +30,11 @@
             }
         },
         {
-            "label": "フロントマター検証（現在のファイル）",
+            "label": "プロジェクト: フロントマター検証（現在のファイル）",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/validate.mjs",
+                "${workspaceFolder}/.tools/scripts/project/validate.mjs",
                 "${file}"
             ],
             "problemMatcher": {
@@ -55,11 +55,11 @@
             }
         },
         {
-            "label": "ドキュメント新規作成",
+            "label": "プロジェクト: 新規作成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/create.mjs"
+                "${workspaceFolder}/.tools/scripts/project/new_project.mjs"
             ],
             "problemMatcher": [ ],
             "presentation": {
@@ -69,11 +69,25 @@
             }
         },
         {
-            "label": "ドキュメント一覧",
+            "label": "ドキュメント: 新規作成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/list.mjs"
+                "${workspaceFolder}/.tools/scripts/document/create.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            }
+        },
+        {
+            "label": "ドキュメント: 一覧",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/document/list.mjs"
             ],
             "problemMatcher": [ ],
             "presentation": {
@@ -83,11 +97,11 @@
             }
         },
         {
-            "label": "ドキュメント一括作成",
+            "label": "ドキュメント: 一括作成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/batch.mjs"
+                "${workspaceFolder}/.tools/scripts/document/batch.mjs"
             ],
             "problemMatcher": [ ],
             "presentation": {
@@ -97,11 +111,11 @@
             }
         },
         {
-            "label": "ドキュメントグラフ（サーバー）",
+            "label": "ドキュメント: グラフ（起動）",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
             "args": [
-                "${workspaceFolder}/000_schema/scripts/graph/graph.mjs"
+                "${workspaceFolder}/.tools/scripts/document/graph/graph.mjs"
             ],
             "problemMatcher": [ ],
             "isBackground": true,
@@ -112,7 +126,7 @@
             }
         },
         {
-            "label": "ドキュメントグラフ（サーバー停止）",
+            "label": "ドキュメント: グラフ（停止）",
             "type": "shell",
             "command": "powershell",
             "args": [
@@ -126,35 +140,7 @@
             }
         },
         {
-            "label": "プロジェクト新規作成",
-            "type": "shell",
-            "command": "C:/Program Files/nodejs/node.exe",
-            "args": [
-                "${workspaceFolder}/000_schema/scripts/new_project.mjs"
-            ],
-            "problemMatcher": [ ],
-            "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "focus": true
-            }
-        },
-        {
-            "label": "Obsidianテンプレート生成",
-            "type": "shell",
-            "command": "C:/Program Files/nodejs/node.exe",
-            "args": [
-                "${workspaceFolder}/000_schema/scripts/gen_obsidian_templates.mjs"
-            ],
-            "problemMatcher": [ ],
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "focus": true
-            }
-        },
-        {
-            "label": "ドキュメントグラフ（ブラウザで開く）",
+            "label": "ドキュメント: グラフ（ブラウザで開く）",
             "type": "shell",
             "command": "powershell",
             "args": [
@@ -165,6 +151,65 @@
             "presentation": {
                 "reveal": "never",
                 "panel": "shared"
+            }
+        },
+        {
+            "label": "ドキュメント: Obsidianテンプレート生成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/document/gen_obsidian_templates.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "変換: HTML生成（現在のファイル）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/build.mjs",
+                "${file}",
+                "--html-only"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "変換: PDF生成（現在のファイル）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/build.mjs",
+                "${file}"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "変換: スニペット生成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/gen_snippets.mjs"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
             }
         }
     ]

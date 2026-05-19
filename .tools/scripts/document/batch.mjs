@@ -11,12 +11,12 @@ import { readdirSync, writeFileSync, existsSync, mkdirSync, appendFileSync, read
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline";
-import { getDocTypes, getProjects, findProject } from "./definitions.mjs";
+import { getDocTypes, getProjects, findProject } from "../shared/definitions.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const HISTORY_FILE = join(__dirname, "..", "logs", "create_history.jsonl");
-const FLOWS_FILE = join(__dirname, "..", "flows.json");
+const HISTORY_FILE = join(__dirname, "..", "..", "logs", "create_history.jsonl");
+const FLOWS_FILE = join(__dirname, "..", "..", "..", "000_schema", "document", "flows.json");
 
 function ask(rl, question) {
     return new Promise((r) => rl.question(question, r));
@@ -164,7 +164,7 @@ async function main() {
     }
 
     // 履歴記録
-    mkdirSync(join(__dirname, "..", "logs"), { recursive: true });
+    mkdirSync(join(__dirname, "..", "..", "logs"), { recursive: true });
     for (const { tmpl, id, fileBaseName } of created) {
         const record = JSON.stringify({
             datetime: new Date().toISOString(),

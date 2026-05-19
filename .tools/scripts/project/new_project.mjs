@@ -11,7 +11,7 @@ import { readdirSync, mkdirSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline";
-import { WORKSPACE, EXCLUDED_PREFIXES, PROJECT_FOLDER_STRUCTURE } from "./definitions.mjs";
+import { WORKSPACE, EXCLUDED_PREFIXES, PROJECT_FOLDER_STRUCTURE } from "../shared/definitions.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

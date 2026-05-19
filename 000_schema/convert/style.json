@@ -1,0 +1,44 @@
+{
+    "$comment": "スタイル設定 - CSS変数として出力される。build.mjs が読み込む。",
+    "typography": {
+        "fontFamily": "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif",
+        "fontSize": {
+            "title": "36px",
+            "h1": "28px",
+            "h2": "24px",
+            "h3": "20px",
+            "h4": "18px",
+            "body": "16px",
+            "small": "13px"
+        },
+        "lineHeight": 1.8,
+        "fontWeight": {
+            "heading": "700",
+            "body": "400"
+        }
+    },
+    "colors": {
+        "text": "#333333",
+        "heading": "#111111",
+        "headingBorder": "#2c3e50",
+        "subtle": "#555555",
+        "link": "#0066cc",
+        "code": "#c7254e",
+        "codeBg": "#f9f2f4",
+        "preBg": "#f6f8fa"
+    },
+    "heading": {
+        "numbering": true,
+        "levels": [ "h1", "h2", "h3" ]
+    },
+    "spacing": {
+        "paragraphGap": "0.75em",
+        "headingTop": "2em",
+        "headingBottom": "0.5em"
+    },
+    "titlePage": {
+        "titleSize": "36px",
+        "subtitleSize": "18px",
+        "coverMaxHeight": "360px"
+    }
+}

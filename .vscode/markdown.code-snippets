@@ -1,0 +1,99 @@
+{
+    "warning": {
+        "prefix": "warn",
+        "description": "警告ブロック",
+        "body": [
+            ":::warning",
+            "${1:内容}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "center": {
+        "prefix": "center",
+        "description": "中央揃え",
+        "body": [
+            ":::center",
+            "${1:内容}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "right": {
+        "prefix": "right",
+        "description": "右寄せ",
+        "body": [
+            ":::right",
+            "${1:内容}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "large": {
+        "prefix": "large",
+        "description": "大きい文字",
+        "body": [
+            ":::large",
+            "${1:内容}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "red": {
+        "prefix": "red",
+        "description": "赤文字",
+        "body": [
+            ":::red",
+            "${1:内容}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "pagebreak": {
+        "prefix": "pb",
+        "description": "ページ区切り",
+        "body": [
+            ":::pagebreak",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "figure": {
+        "prefix": "fig",
+        "description": "図（キャプション付き・internal起点）",
+        "body": [
+            ":::figure ${4:width=80%} origin=internal",
+            "![${1:alt}](${2:path})",
+            "",
+            "${3:キャプション}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "figure_ext": {
+        "prefix": "fige",
+        "description": "図（キャプション付き・external起点）",
+        "body": [
+            ":::figure ${4:width=80%} origin=external",
+            "![${1:alt}](${2:path})",
+            "",
+            "${3:キャプション}",
+            ":::"
+        ],
+        "scope": "markdown"
+    },
+    "table": {
+        "prefix": "tbl",
+        "description": "表（キャプション付き）",
+        "body": [
+            ":::table",
+            "${1:表タイトル}",
+            "",
+            "| ${2:列1} | ${3:列2} |",
+            "| --- | --- |",
+            "| ${4:} | ${5:} |",
+            ":::"
+        ],
+        "scope": "markdown"
+    }
+}

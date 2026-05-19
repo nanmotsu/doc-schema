@@ -11,8 +11,8 @@ import { readFileSync, readdirSync, existsSync } from "fs";
 import { basename, join } from "path";
 import yaml from "js-yaml";
 import Ajv from "ajv";
-import { SCHEMA_MAP, getSchema, getDocTypes, getProjects, findProject } from "./definitions.mjs";
-import { setupLogger } from "./logger.mjs";
+import { SCHEMA_MAP, getSchema, getDocTypes, getProjects, findProject } from "../shared/definitions.mjs";
+import { setupLogger } from "../shared/logger.mjs";
 
 const ajv = new Ajv({ allErrors: true });
 

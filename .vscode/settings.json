@@ -19,6 +19,7 @@
     },
     "json.format.keepLines": true,
     "foam.files.exclude": [
-        "999_フォルダ構成について/**",
+        "50_blueberry_system/**",
+        "WEBアプリ/**",
     ]
 }

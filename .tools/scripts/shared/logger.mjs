@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const LOG_DIR = join(__dirname, "..", "logs");
+const LOG_DIR = join(__dirname, "..", "..", "logs");
 
 export function setupLogger(scriptName) {
     mkdirSync(LOG_DIR, { recursive: true });

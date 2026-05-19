@@ -8,11 +8,11 @@ import { readdirSync, writeFileSync, existsSync, mkdirSync, appendFileSync } fro
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline";
-import { getDocTypes, getProjects, findProject } from "./definitions.mjs";
+import { getDocTypes, getProjects, findProject } from "../shared/definitions.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const HISTORY_FILE = join(__dirname, "..", "logs", "create_history.jsonl");
+const HISTORY_FILE = join(__dirname, "..", "..", "logs", "create_history.jsonl");
 
 // 質問プロンプト
 function ask(rl, question) {
@@ -143,7 +143,7 @@ async function main() {
     console.log(`\n作成完了: ${filePath}`);
 
     // 作成履歴を蓄積
-    mkdirSync(join(__dirname, "..", "logs"), { recursive: true });
+    mkdirSync(join(__dirname, "..", "..", "logs"), { recursive: true });
     const record = JSON.stringify({
         datetime: new Date().toISOString(),
         project: project.name,

@@ -10,8 +10,8 @@
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
 import yaml from "js-yaml";
-import { getDocTypes, getProjects, findProject } from "./definitions.mjs";
-import { setupLogger } from "./logger.mjs";
+import { getDocTypes, getProjects, findProject } from "../shared/definitions.mjs";
+import { setupLogger } from "../shared/logger.mjs";
 
 function extractFrontmatter(filepath) {
     const text = readFileSync(filepath, "utf-8");

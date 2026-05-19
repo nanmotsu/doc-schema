@@ -14,8 +14,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SCHEMA_DIR = join(__dirname, "..", "schemas");
-const OUTPUT_DIR = join(__dirname, "..", "obsidian_template");
+const SCHEMA_DIR = join(__dirname, "..", "..", "..", "000_schema", "document", "schemas");
+const OUTPUT_DIR = join(__dirname, "..", "..", "..", "000_schema", "document", "obsidian_template");
 
 // 出力ディレクトリがなければ作成
 if (!existsSync(OUTPUT_DIR)) {

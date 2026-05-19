@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { readFileSync, readdirSync, existsSync, writeFileSync, unlinkSync } from "node:fs";
 import { join, basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { WORKSPACE, SCHEMA_DIR, getProjects, getDocTypes } from "../definitions.mjs";
+import { WORKSPACE, SCHEMA_DIR, getProjects, getDocTypes } from "../../shared/definitions.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = 3333;

@@ -7,8 +7,8 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-export const WORKSPACE = resolve(__dirname, "..", "..");
-export const SCHEMA_DIR = join(__dirname, "..", "schemas");
+export const WORKSPACE = resolve(__dirname, "..", "..", "..");
+export const SCHEMA_DIR = join(__dirname, "..", "..", "..", "000_schema", "document", "schemas");
 
 /**
  * プロジェクトとして扱わない 3 桁プレフィックスの除外リスト
@@ -96,7 +96,7 @@ export function getProjects() {
 
 /**
  * プロジェクトを名前または番号プレフィックスで検索する
- * @param {string} arg - プロジェクト名 ("001_~~~~~~_system") または数字プレフィックス ("001")
+ * @param {string} arg - プロジェクト名 ("001_blueberry_system") または数字プレフィックス ("001")
  * @returns {{ name: string, dir: string } | null}
  */
 export function findProject(arg) {
