@@ -7,7 +7,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname, basename, extname, resolve } from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 import { marked } from "marked";
 import { transformDSL } from "./dsl.mjs";
@@ -407,6 +407,22 @@ const internalAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : null;
 const externalBase = meta.assetsExternal ?? null;
 const assetsCtx = { internalAbs, externalBase };
 
+// cover パスの解決（coverOrigin: internal | external に基づく）
+// 相対パスのみ解決し、https: / file: / data: はそのまま使用
+if (meta.cover && !/^(https?:|file:|data:)/i.test(meta.cover)) {
+    const origin = meta.coverOrigin ?? 'internal';
+    const clean = meta.cover.replace(/^\.\//,  '');
+    if (origin === 'external' && externalBase) {
+        if (/^https?:/i.test(externalBase)) {
+            meta.cover = externalBase.replace(/\/$/, '') + '/' + clean;
+        } else {
+            meta.cover = pathToFileURL(resolve(externalBase, clean)).href;
+        }
+    } else if (internalAbs) {
+        meta.cover = pathToFileURL(resolve(internalAbs, clean)).href;
+    }
+}
+
 // 見出しスラグマップを構築（TOC と見出し id に共有）
 const headings = buildSlugMap(body);
 
@@ -473,14 +489,17 @@ if (hasMermaid) {
     const tmpPage = await browser.newPage();
 
     // ローカルmermaid.jsを注入してSVGを生成（CDN不要・オフライン完結）
-    // htmlLabels:false → foreignObjectでなくSVGテキストを使用して文字ずれを解消
+    // htmlLabels:false → SVGテキストで描画。日本語フォントをページに注入して文字幅計算を正確にする
     const mermaidJs = readFileSync(MERMAID_JS, "utf-8");
-    await tmpPage.setContent("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body></body></html>");
+    await tmpPage.setContent(`<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
+* { font-family: 'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif; }
+</style></head><body></body></html>`);
     await tmpPage.evaluate(mermaidJs);
     await tmpPage.evaluate(() => {
         window.mermaid.initialize({
             startOnLoad: false,
             theme: 'neutral',
+            fontFamily: "'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif",
             flowchart: { htmlLabels: false },
             sequence: { useMaxWidth: false },
         });
@@ -502,11 +521,22 @@ if (hasMermaid) {
     await tmpPage.close();
     await browser.close();
 
+    // foreignObject の div インラインスタイルを修正（Mermaid が table-cell を使い上ずれする問題）
+    // display:table-cell → flex に変え、<p> の margin も除去する
+    const fixedSvgs = svgs.map(svg =>
+        svg
+            .replace(
+                /style="display: table-cell;([^"]*)"/g,
+                'style="display: flex; align-items: center; justify-content: center; height: 100%;$1"'
+            )
+            .replace(/<p>/g, '<p style="margin:0;padding:0;">')
+    );
+
     // 取得したSVGをfigureにラップしてプレースホルダーを置換
     for (let i = 0; i < mermaidBlocks.length; i++) {
         const { caption } = mermaidBlocks[i];
         const figcaption = caption ? `<figcaption>${caption}</figcaption>` : '<figcaption></figcaption>';
-        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure">${svgs[i]}${figcaption}</figure>`);
+        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure">${fixedSvgs[i]}${figcaption}</figure>`);
     }
 }
 
@@ -517,8 +547,7 @@ if (internalAbs) {
     finalHtml = finalHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
         if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
         const clean = src.replace(/^\.\//,  "");
-        const abs = resolve(absNorm, clean).replace(/\\/g, "/");
-        return `${pre}file:///${abs}${post}`;
+        return `${pre}${pathToFileURL(resolve(absNorm, clean)).href}${post}`;
     });
 }
 writeFileSync(htmlPath, finalHtml, "utf-8");
@@ -533,7 +562,7 @@ const { default: puppeteer } = await import("puppeteer");
 const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
 
-await page.goto(`file:///${htmlPath.replace(/\\/g, "/")}`, {
+await page.goto(pathToFileURL(htmlPath).href, {
     waitUntil: "networkidle0",
 });
 

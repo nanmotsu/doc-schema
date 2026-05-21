@@ -131,6 +131,17 @@ img {
     height: auto;
 }
 
+/* === SVG（Mermaid等）============================================= */
+figure.figure svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* SVG テキストのフォント指定（htmlLabels:false 時） */
+figure.figure svg text {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+}
+
 /* === テーブル ===================================================== */
 table {
     border-collapse: collapse;
@@ -209,18 +220,21 @@ th {
 
 .revision-history .col-version {
     width: 8%;
+    white-space: nowrap;
 }
 
 .revision-history .col-date {
-    width: 14%;
+    width: 18%;
+    white-space: nowrap;
 }
 
 .revision-history .col-author {
     width: 14%;
+    white-space: nowrap;
 }
 
 .revision-history .col-description {
-    width: 64%;
+    width: 60%;
 }
 
 /* ============================================================
@@ -285,8 +299,13 @@ th {
 
     table,
     figure,
-    pre,
     .warning {
         page-break-inside: avoid;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-x: visible;
     }
 }

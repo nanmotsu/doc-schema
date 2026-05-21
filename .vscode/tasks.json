@@ -211,6 +211,44 @@
                 "panel": "shared",
                 "focus": true
             }
+        },
+        {
+            "label": "テスト: Excel生成（現在のフォルダ）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/test/gen_excel.mjs",
+                "${fileDirname}"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
+            "label": "テスト: Excel生成",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/test/gen_excel.mjs",
+                "${input:testSpecDir}"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testSpecDir",
+            "type": "promptString",
+            "description": "テスト仕様書ディレクトリのパス（5_test_specs 等）",
+            "default": "${workspaceFolder}/001_blueberry_system/external/5_test_specs"
         }
     ]
 }

@@ -1,0 +1,21 @@
+# external/5_test_specs/preconditions.yaml
+# 共通前提条件ファイル（全テストスペックから参照される）
+
+preconditions:
+  - テストユーザー（test@example.com）が登録済みであること
+  - サーバーが起動していること
+  - ステージング環境へのアクセス権があること
+
+environment:                    # 実行環境
+  os: Windows 11
+  browser: Chrome 124
+  server: https://staging.example.com
+  db: PostgreSQL 15
+
+test_data:                      # 全テスト共通の事前データ
+  - label: 共通施設マスタ
+    description: 全テストで前提とする施設データ
+    columns: [施設ID, 施設名]
+    rows:
+      - [1, "テスト施設A"]
+      - [2, "テスト施設B"]

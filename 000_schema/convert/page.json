@@ -15,11 +15,11 @@
         "header": {
             "left": "",
             "center": "",
-            "right": "<span class='title'></span>"
+            "right": ""
         },
         "footer": {
             "left": "",
-            "center": "<span class='pageNumber'></span> / <span class='totalPages'></span>",
+            "center": "",
             "right": ""
         }
     },

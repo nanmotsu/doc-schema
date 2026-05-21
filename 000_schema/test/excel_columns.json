@@ -1,0 +1,19 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "テストケース Excel 出力の列定義。enabled: false にすると列を非表示にできる。",
+    "columns": [
+        { "key": "testId",    "header": "テストID",           "width": 12, "enabled": false  },
+        { "key": "caseId",    "header": "ケースID",            "width": 10, "enabled": true  },
+        { "key": "caseTitle", "header": "ケース名",            "width": 22, "enabled": true  },
+        { "key": "stepId",    "header": "ステップID",          "width": 24, "enabled": true  },
+        { "key": "subtitle",  "header": "試験項目",            "width": 22, "enabled": true  },
+        { "key": "precond",   "header": "前提条件",            "width": 30, "enabled": true  },
+        { "key": "action",    "header": "操作",                "width": 34, "enabled": true  },
+        { "key": "expected",  "header": "期待結果",            "width": 34, "enabled": true  },
+        { "key": "evType",    "header": "エビデンス種別",      "width": 14, "enabled": true  },
+        { "key": "evShot",    "header": "スクリーンショット",  "width": 26, "enabled": true  },
+        { "key": "testedAt",  "header": "実施日",              "width": 14, "enabled": true  },
+        { "key": "testedBy",  "header": "実施者",              "width": 14, "enabled": true  },
+        { "key": "result",    "header": "結果",                "width": 10, "enabled": true  }
+    ]
+}

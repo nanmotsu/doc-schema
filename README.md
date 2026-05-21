@@ -16,6 +16,15 @@ cd .tools
 npm install
 ```
 
+> **初回のみ** — PDF 生成・Mermaid 変換に使用する Chrome を別途インストールする必要があります（`npm install` では自動取得されません）。
+>
+> ```bash
+> cd .tools
+> npx puppeteer browsers install chrome
+> ```
+>
+> インストール先: `C:\Users\<ユーザー名>\.cache\puppeteer\`
+
 ---
 
 ## フォルダ構成
@@ -28,9 +37,11 @@ npm install
     document/              # ドキュメント管理スクリプト
       graph/               # ドキュメントグラフ（Webサーバー）
     convert/               # Markdown → HTML / PDF 変換スクリプト
+    test/                  # テスト仕様書 Excel 生成スクリプト
 .vscode/
   tasks.json               # VS Code タスク定義
   markdown.code-snippets   # DSL ブロックスニペット（gen_snippets で生成）
+  test_spec.code-snippets  # テスト仕様書 YAML スニペット
 000_schema/                # スキーマ・設定ファイル
   document/                # ドキュメント管理スキーマ
     schemas/               # フロントマター JSON Schema（11種別）
@@ -40,6 +51,8 @@ npm install
     dsl.json               # DSL ブロック定義（HTML変換ルール・スニペット）
     style.json             # CSS 変数値（フォント・色・スペーシング）
     page.json              # PDF ページ設定（用紙・余白）
+  test/                    # テスト仕様書設定
+    excel_columns.json     # Excel 出力列の有効/無効切り替え
 {番号}_{プロジェクト名}/   # プロジェクトドキュメント
 997_*/                     # 図ファイル（draw.io / Excalidraw）
 998_*/                     # 共通ナレッジ
@@ -83,6 +96,13 @@ npm install
 | **変換: PDF生成（現在のファイル）**  | HTML を経由して PDF に変換して同じディレクトリに出力します                  |
 | **変換: スニペット生成**             | `dsl.json` のブロック定義から `.vscode/markdown.code-snippets` を生成します |
 
+### テスト仕様書
+
+| タスク名                                | 説明                                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------------- |
+| **テスト: Excel生成（現在のフォルダ）** | 現在開いているファイルが含まれるフォルダの `TEST-*.yaml` を読み込み Excel を生成します |
+| **テスト: Excel生成**                   | テスト仕様書ディレクトリのパスを入力して Excel を生成します                            |
+
 ---
 
 ## ドキュメント種別
@@ -114,7 +134,8 @@ npm install
 │   ├── 2_deploy/
 │   ├── 3_runbook/
 │   ├── 4_trouble_shooting/
-│   └── 5_assets/{analysis, client, evidence, test}/
+│   ├── 5_manuals/
+│   └── 6_assets/{analysis, client, evidence, figures, test}/
 ├── external/
 │   ├── 1_requirements/
 │   ├── 2_specifications/
@@ -243,11 +264,58 @@ node .tools/scripts/convert/build.mjs "999_利用ガイド/変換サンプル/sa
 
 ---
 
+## テスト仕様書機能（YAML → Excel）
+
+`external/5_test_specs/` 以下の YAML ファイルを読み込み、テスト仕様書 Excel（`.xlsx`）を生成します。
+
+### ファイル構成
+
+```
+5_test_specs/
+├── preconditions.yaml          # 全ケース共通の前提条件・実行環境・事前データ
+├── TEST-001_*.yaml             # テスト仕様（複数配置可）
+├── TEST-002_*.yaml
+└── output/
+    └── テスト仕様書_yyyyMMddHHmmss.xlsx   # 生成結果（タイムスタンプ付き・上書きしない）
+```
+
+### Excel 構成
+
+| シート        | 内容                                                                          |
+| ------------- | ----------------------------------------------------------------------------- |
+| ①共通前提条件 | `preconditions.yaml` の前提条件・実行環境・事前データ                         |
+| ②〜（各仕様） | `TEST-*.yaml` ごとに 1 シート。上部に前提条件・事前データ、下部にステップ一覧 |
+
+### 列のカスタマイズ
+
+`000_schema/test/excel_columns.json` の `enabled` を `false` にすると列を非表示にできます。
+
+```json
+{ "key": "evShot", "header": "スクリーンショット", "width": 26, "enabled": false }
+```
+
+### YAML スニペット
+
+`.vscode/test_spec.code-snippets` に登録済みです。YAML ファイル内で以下のプレフィックスを入力すると補完されます。
+
+| プレフィックス | 内容                                 |
+| -------------- | ------------------------------------ |
+| `tspec`        | ファイルヘッダー（`id` ～ `cases:`） |
+| `tc`           | テストケース 1 件                    |
+| `step`         | ステップ・手動エビデンス             |
+| `step-auto`    | ステップ・自動テスト                 |
+| `step-none`    | ステップ・エビデンスなし             |
+
+サンプルファイルは `999_利用ガイド/テスト結果サンプル/` にあります。
+
+---
+
 ## 依存ライブラリ
 
 | パッケージ                                          | バージョン | ライセンス | 用途                                |
 | --------------------------------------------------- | ---------- | ---------- | ----------------------------------- |
 | [ajv](https://github.com/ajv-validator/ajv)         | ^8.17.0    | MIT        | フロントマター JSON Schema 検証     |
+| [exceljs](https://github.com/exceljs/exceljs)       | ^4.4.0     | MIT        | テスト仕様書 Excel ファイル生成     |
 | [js-yaml](https://github.com/nodeca/js-yaml)        | ^4.1.0     | MIT        | YAML パース                         |
 | [marked](https://github.com/markedjs/marked)        | ^12.0.0    | MIT        | Markdown → HTML 変換                |
 | [mermaid](https://github.com/mermaid-js/mermaid)    | ^11.0.0    | MIT        | Mermaid ダイアグラム描画（SVG変換） |

@@ -87,6 +87,9 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         const height = attrs.height ?? defaults.height ?? null;
         const sizeStyle = buildSizeStyle(width, height);
 
+        // align: left / center / right（省略時は CSS クラスのデフォルト = center）
+        const align = attrs.align ?? null;
+
         const lines = trimmed.split('\n');
         const imgLine = lines.find(l => /^!\[/.test(l.trim())) ?? '';
         const captionLines = lines.filter(l => !/^!\[/.test(l.trim()) && l.trim()).join(' ').trim();
@@ -120,8 +123,9 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
             }
         }
 
+        const alignStyle = align ? ` style="text-align:${align}"` : '';
         return [
-            `<${block.element} class="${block.class}">`,
+            `<${block.element} class="${block.class}"${alignStyle}>`,
             imgHtml,
             captionLines ? `<figcaption>${captionLines}</figcaption>` : '',
             `</${block.element}>`,
