@@ -11,7 +11,8 @@
             "body": "16px",
             "small": "13px"
         },
-        "lineHeight": 1.8,
+        "lineHeightBody": 1.3,
+        "lineHeightHeading": 1.3,
         "fontWeight": {
             "heading": "700",
             "body": "400"
@@ -34,7 +35,9 @@
     "spacing": {
         "paragraphGap": "0.75em",
         "headingTop": "2em",
-        "headingBottom": "0.5em"
+        "headingBottom": "0.5em",
+        "tocPadding": "0.1em 0",
+        "tocItemPadding": "0 0"
     },
     "titlePage": {
         "titleSize": "36px",

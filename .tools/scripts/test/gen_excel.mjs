@@ -196,7 +196,8 @@ function buildSpecSheet(sheet, spec) {
         }
     }
 
-    sheet.views = [{ state: "frozen", ySplit: hRow.number }];
+    // 列固定は行わない（Excel の行固定は見出し行単位でしかできないため。必要ならユーザー側で設定してもらう）
+    //sheet.views = [{ state: "frozen", ySplit: hRow.number }];
 }
 
 // ── 共通: test_data テーブル群をシートに追記 ─────────────────

@@ -14,7 +14,7 @@
 body {
     font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
     font-size: var(--body-size, 16px);
-    line-height: var(--line-height, 1.8);
+    line-height: var(--body-line-height, 1.8);
     color: var(--color-text, #333);
     padding: 20px;
     max-width: 860px;
@@ -26,9 +26,9 @@ h1,
 h2,
 h3,
 h4 {
-    margin-top: 0.8em;
-    margin-bottom: 0.5em;
-    line-height: 1.3;
+    margin-top: var(--gap-heading-top, 0.8em);
+    margin-bottom: var(--gap-heading-bot, 0.5em);
+    line-height: var(--heading-line-height, 1.3);
     font-weight: bold;
 }
 
@@ -57,12 +57,14 @@ p {
     margin: var(--gap-paragraph) 0;
 }
 
-/* DSLブロック内の <p> はブロック自身の padding に任せてマージンを消す */
+/* DSLブロック内・テーブルセル内の <p> はマージンを消す */
 .warning p,
 .center p,
 .right p,
 .large p,
-.red p {
+.red p,
+td p,
+th p {
     margin: 0;
 }
 
@@ -159,6 +161,7 @@ td {
 th {
     background: var(--color-th-bg);
     font-weight: bold;
+    white-space: nowrap;
 }
 
 /* ============================================================
@@ -243,7 +246,7 @@ th {
 .toc {
     break-after: page;
     page-break-after: always;
-    padding: 2em 0;
+    padding: var(--toc-padding, 2em 0);
 }
 
 .toc-title {
@@ -262,7 +265,7 @@ th {
 }
 
 .toc li {
-    padding: 0.3em 0;
+    padding: var(--toc-item-padding, 0.3em 0);
     margin: 0;
     line-height: 1.5;
 }
@@ -275,6 +278,18 @@ th {
 .toc a:hover {
     color: var(--color-link, #0066cc);
     text-decoration: underline;
+}
+
+/* ============================================================
+   画面表示（HTML）
+   ============================================================ */
+@media screen {
+
+    /* ページ区切り DSL の視覚的インジケーター（PDF では非表示） */
+    .page-break {
+        margin: 2em 0;
+        border-top: 1px solid #aaa;
+    }
 }
 
 /* ============================================================

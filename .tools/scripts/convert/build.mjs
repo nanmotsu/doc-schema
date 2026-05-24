@@ -18,6 +18,20 @@ const _require = createRequire(import.meta.url);
 const MERMAID_JS = _require.resolve("mermaid/dist/mermaid.min.js");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// システムにインストール済みのChromeを優先して使用する。
+// Puppeteer独自のChrome（要ダウンロード）より先に既存インストールを探す。
+function findSystemChrome() {
+    const candidates = [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ];
+    return candidates.find(p => existsSync(p)) ?? null;
+}
+const CHROME_EXECUTABLE = findSystemChrome();
 const WORKSPACE_ROOT = resolve(join(__dirname, "..", "..", ".."));
 const CONVERT_SCHEMA = join(__dirname, "..", "..", "..", "000_schema", "convert");
 
@@ -74,7 +88,7 @@ function generateConfigCSS() {
             );
             const content = parts.length === 1
                 ? `${parts[0]} ". "`
-                : `${parts.join(" ")} " "`;
+                : `${parts.join(" ")} ". "`;
             headingCSS += `h${lv}::before { counter-increment: h${lv}-counter; content: ${content}; }\n`;
         }
     }
@@ -136,7 +150,8 @@ function generateConfigCSS() {
         `    --body-size:  ${t.fontSize.body};`,
         `    --small-size: ${t.fontSize.small || "13px"};`,
         `    --font-family: ${t.fontFamily};`,
-        `    --line-height: ${t.lineHeight};`,
+        `    --body-line-height:    ${t.lineHeightBody ?? t.lineHeight ?? 1.8};`,
+        `    --heading-line-height: ${t.lineHeightHeading ?? 1.3};`,
         `    --color-text:    ${c.text};`,
         `    --color-heading: ${c.heading};`,
         `    --color-heading-border: ${c.headingBorder};`,
@@ -153,6 +168,8 @@ function generateConfigCSS() {
         `    --gap-paragraph:   ${s.paragraphGap};`,
         `    --gap-heading-top: ${s.headingTop};`,
         `    --gap-heading-bot: ${s.headingBottom};`,
+        `    --toc-padding:      ${s.tocPadding ?? "2em 0"};`,
+        `    --toc-item-padding: ${s.tocItemPadding ?? "0.3em 0"};`,
         `    --title-size:       ${tp.titleSize || "36px"};`,
         `    --subtitle-size:    ${tp.subtitleSize || "18px"};`,
         `    --cover-max-height: ${tp.coverMaxHeight || "360px"};`,
@@ -343,7 +360,7 @@ function buildTOC(headings, meta) {
             orderedLevels.filter(l => l > level).forEach(l => { counters[l] = 0; });
             const levelIndex = orderedLevels.indexOf(level);
             const nums = orderedLevels.slice(0, levelIndex + 1).map(cl => counters[cl]);
-            prefix = nums.length === 1 ? `${nums[0]}. ` : `${nums.join(".")} `;
+            prefix = nums.length === 1 ? `${nums[0]}. ` : `${nums.join(".")}.\u0020`;
         }
         const display = rawText
             .replace(/`([^`]*)`/g, "$1")
@@ -411,7 +428,7 @@ const assetsCtx = { internalAbs, externalBase };
 // 相対パスのみ解決し、https: / file: / data: はそのまま使用
 if (meta.cover && !/^(https?:|file:|data:)/i.test(meta.cover)) {
     const origin = meta.coverOrigin ?? 'internal';
-    const clean = meta.cover.replace(/^\.\//,  '');
+    const clean = meta.cover.replace(/^\.\//, '');
     if (origin === 'external' && externalBase) {
         if (/^https?:/i.test(externalBase)) {
             meta.cover = externalBase.replace(/\/$/, '') + '/' + clean;
@@ -436,6 +453,7 @@ const bodyHtml = rawBodyHtml.replace(/<h([1-3])>/g, (_, lv) => {
 
 
 // Mermaid コードブロックを検出・収集しプレースホルダーに置換。
+// ブロック先頭の %%width: 70%% ディレクティブで figure の横幅を指定可能。
 const mermaidBlocks = [];
 const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>(?:\s*<p>([\s\S]*?)<\/p>)?/g;
 let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) => {
@@ -446,7 +464,11 @@ let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) =
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
-    mermaidBlocks.push({ idx, code: decoded, caption: (caption || '').trim() });
+    // %%width: 70%% のようなディレクティブを先頭行から取り出してコードから除去
+    const widthMatch = decoded.match(/^%%\s*width:\s*([\d.]+%?)\s*%%\s*\n/);
+    const width = widthMatch ? widthMatch[1] : null;
+    const cleanCode = widthMatch ? decoded.slice(widthMatch[0].length) : decoded;
+    mermaidBlocks.push({ idx, code: cleanCode, caption: (caption || '').trim(), width });
     return `__MERMAID_${idx}__`;
 });
 const hasMermaid = mermaidBlocks.length > 0;
@@ -485,11 +507,14 @@ let finalHtml = htmlContent;
 
 if (hasMermaid) {
     const { default: puppeteer } = await import("puppeteer");
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+        headless: true,
+        ...(CHROME_EXECUTABLE ? { executablePath: CHROME_EXECUTABLE } : {}),
+    });
     const tmpPage = await browser.newPage();
 
     // ローカルmermaid.jsを注入してSVGを生成（CDN不要・オフライン完結）
-    // htmlLabels:false → SVGテキストで描画。日本語フォントをページに注入して文字幅計算を正確にする
+    // htmlLabels:true → foreignObject+HTML で描画。<br>改行・複雑ネストの文字位置ずれを防止
     const mermaidJs = readFileSync(MERMAID_JS, "utf-8");
     await tmpPage.setContent(`<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
 * { font-family: 'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif; }
@@ -500,7 +525,7 @@ if (hasMermaid) {
             startOnLoad: false,
             theme: 'neutral',
             fontFamily: "'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif",
-            flowchart: { htmlLabels: false },
+            flowchart: { htmlLabels: true },
             sequence: { useMaxWidth: false },
         });
     });
@@ -521,22 +546,33 @@ if (hasMermaid) {
     await tmpPage.close();
     await browser.close();
 
-    // foreignObject の div インラインスタイルを修正（Mermaid が table-cell を使い上ずれする問題）
-    // display:table-cell → flex に変え、<p> の margin も除去する
+    // foreignObject の表示を修正する。
+    // 問題①: Mermaid は nodeLabel の内容を <span><p>...</p></span> の形で生成するが、
+    //         ブロック要素 <p> をインライン要素 <span> の中に入れると HTML パーサーの
+    //         adoption algorithm により DOM が再構築され、テキストが重なる。
+    //         <p> を除去して <br> だけ残せば <span> 内でインライン改行が正しく機能する。
+    // 問題②: Mermaid は div に display:table-cell を設定するが、親に display:table が
+    //         存在しないため table-cell が block 扱いになり縦中央揃えが効かない。
+    //         <p> 除去後は <span> がフレックスアイテムとして機能できるため flex で置換する。
+    //         (<p> がない状態では <span> 内の <br> はフレックスコンテナの外で作用するので
+    //          <br> による改行は正しく機能する)
     const fixedSvgs = svgs.map(svg =>
         svg
+            // ① <p> ラッパー除去（<polygon> など他の SVG 要素と区別するため \b を使用）
+            .replace(/<p\b[^>]*>([\s\S]*?)<\/p>/g, '$1')
+            // ② display:table-cell → flex に置換（縦横中央揃え）
             .replace(
                 /style="display: table-cell;([^"]*)"/g,
                 'style="display: flex; align-items: center; justify-content: center; height: 100%;$1"'
             )
-            .replace(/<p>/g, '<p style="margin:0;padding:0;">')
     );
 
     // 取得したSVGをfigureにラップしてプレースホルダーを置換
     for (let i = 0; i < mermaidBlocks.length; i++) {
-        const { caption } = mermaidBlocks[i];
+        const { caption, width } = mermaidBlocks[i];
         const figcaption = caption ? `<figcaption>${caption}</figcaption>` : '<figcaption></figcaption>';
-        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure">${fixedSvgs[i]}${figcaption}</figure>`);
+        const widthStyle = width ? ` style="width:${width};margin:0 auto;"` : '';
+        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure"${widthStyle}>${fixedSvgs[i]}${figcaption}</figure>`);
     }
 }
 
@@ -546,7 +582,7 @@ if (internalAbs) {
     const absNorm = internalAbs.replace(/\\/g, "/");
     finalHtml = finalHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
         if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
-        const clean = src.replace(/^\.\//,  "");
+        const clean = src.replace(/^\.\//, "");
         return `${pre}${pathToFileURL(resolve(absNorm, clean)).href}${post}`;
     });
 }
@@ -559,7 +595,10 @@ if (htmlOnly) process.exit(0);
 console.log("PDF 生成中...");
 const { default: puppeteer } = await import("puppeteer");
 
-const browser = await puppeteer.launch({ headless: true });
+const browser = await puppeteer.launch({
+    headless: true,
+    ...(CHROME_EXECUTABLE ? { executablePath: CHROME_EXECUTABLE } : {}),
+});
 const page = await browser.newPage();
 
 await page.goto(pathToFileURL(htmlPath).href, {
