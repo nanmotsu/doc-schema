@@ -8,6 +8,27 @@ revisionHistoryPage: false
 
 # Mermaid 検証
 
+## コードブロック図番号の確認
+
+コードブロック先頭に %%fig: キャプション%% を書いた場合のみ、図番号付きで出力される。
+
+```js
+%%fig: 入力値チェック関数（図番号あり）%%
+function validateInput(value) {
+    if (!value) return { ok: false, reason: "empty" };
+    if (value.length > 20) return { ok: false, reason: "too-long" };
+    return { ok: true };
+}
+```
+
+先頭ディレクティブを書かない通常コードブロックは、図番号なしで出力される。
+
+```js
+function normalizeName(name) {
+    return String(name).trim().replace(/\s+/g, " ");
+}
+```
+
 ## 複雑なフローチャート（深いネスト）
 
 深いネストと多数ノードで文字がめり込まないかを確認する。

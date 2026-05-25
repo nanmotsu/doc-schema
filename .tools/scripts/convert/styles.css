@@ -57,6 +57,11 @@ p {
     margin: var(--gap-paragraph) 0;
 }
 
+/* フロントマター paragraphIndent/bodyIndent が有効なときのみ本文段落を字下げ */
+body.indent-body>p {
+    text-indent: 1em;
+}
+
 /* DSLブロック内・テーブルセル内の <p> はマージンを消す */
 .warning p,
 .center p,
@@ -142,6 +147,19 @@ figure.figure svg {
 /* SVG テキストのフォント指定（htmlLabels:false 時） */
 figure.figure svg text {
     font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+}
+
+/* コードを図として扱う場合は本文を左寄せにする */
+figure.code-figure {
+    text-align: left;
+}
+
+figure.code-figure pre {
+    margin: 0;
+}
+
+figure.code-figure figcaption {
+    text-align: center;
 }
 
 /* === テーブル ===================================================== */
@@ -312,9 +330,33 @@ th {
         page-break-after: avoid;
     }
 
-    table,
     figure,
     .warning {
+        page-break-inside: avoid;
+    }
+
+    /* 大きい表は分割を許可し、表番号だけ取り残されるのを防ぐ */
+    .table-wrapper .table-caption {
+        break-after: avoid;
+        page-break-after: avoid;
+        margin-bottom: 0.3em;
+    }
+
+    .table-wrapper table {
+        break-before: avoid;
+        page-break-before: avoid;
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    .table-wrapper thead {
+        display: table-header-group;
+    }
+
+    .table-wrapper tr,
+    .table-wrapper th,
+    .table-wrapper td {
+        break-inside: avoid;
         page-break-inside: avoid;
     }
 

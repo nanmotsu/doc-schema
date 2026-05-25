@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>変換機能サンプル3</title>
+  <style>
+/* === CSS変数 (style.json / page.json から生成) === */
+:root {
+    --h1-size:    28px;
+    --h2-size:    24px;
+    --h3-size:    20px;
+    --body-size:  16px;
+    --small-size: 13px;
+    --font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    --body-line-height:    1.3;
+    --heading-line-height: 1.3;
+    --color-text:    #333333;
+    --color-heading: #111111;
+    --color-heading-border: #2c3e50;
+    --color-subtle:  #555555;
+    --color-link:    #0066cc;
+    --color-code:    #c7254e;
+    --color-code-bg: #f9f2f4;
+    --color-pre-bg:  #f6f8fa;
+    --color-border:  #bdc3c7;
+    --color-th-bg:   #f0f0f0;
+    --table-cell-border: 1px solid #bdc3c7;
+    --table-cell-padding: 0.45em 0.8em;
+    --table-margin:       0 0;
+    --gap-paragraph:   0.75em;
+    --gap-heading-top: 2em;
+    --gap-heading-bot: 0.5em;
+    --toc-padding:      0.1em 0;
+    --toc-item-padding: 0 0;
+    --title-size:       36px;
+    --subtitle-size:    18px;
+    --cover-max-height: 360px;
+    --page-content-height: calc(297mm - 20mm - 15mm);
+}
+@page {
+    size: A4 portrait;
+    margin: 20mm 10mm 15mm 15mm;
+}
+body { counter-reset: h1-counter; }
+/* === 見出し番号 (style.json heading から生成) === */
+h1 { counter-reset: h2-counter figure-counter table-counter; }
+h2 { counter-reset: h3-counter; }
+h1::before { counter-increment: h1-counter; content: counter(h1-counter) ". "; }
+h2::before { counter-increment: h2-counter; content: counter(h1-counter) "." counter(h2-counter) ". "; }
+h3::before { counter-increment: h3-counter; content: counter(h1-counter) "." counter(h2-counter) "." counter(h3-counter) ". "; }
+
+/* === DSLブロック (dsl.json styles から生成) === */
+.warning {
+    color: #e67e00;
+    background: #fff8f0;
+    border-left: 4px solid #e67e00;
+    padding: 0.2em 0.5em;
+    margin: 0.5em 0;
+    border-radius: 0 4px 4px 0;
+    max-width: 100%;
+}
+.center {
+    text-align: center;
+}
+.right {
+    text-align: right;
+}
+.large {
+    font-size: 24px;
+}
+.red {
+    color: #cc0000;
+}
+.page-break {
+    page-break-before: always;
+    break-before: page;
+}
+.figure {
+    margin: 0 0;
+    text-align: center;
+}
+figure.figure figcaption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.table-wrapper {
+    margin: 0 0;
+}
+.table-wrapper .table-caption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* === 図・表カウンター (dsl.json counter から生成) === */
+figure.figure figcaption::before {
+    counter-increment: figure-counter;
+    content: "図" counter(h1-counter) "." counter(figure-counter) " ";
+    font-weight: bold;
+}
+.table-wrapper .table-caption::before {
+    counter-increment: table-counter;
+    content: "表" counter(h1-counter) "." counter(table-counter) " ";
+    font-weight: bold;
+}
+
+/* ============================================================
+   Markdown 文書 スタイルシート（構造定義のみ）
+   CSS変数・DSLクラス・カウンター・@page は build.mjs がスキーマから生成する。
+   ============================================================ */
+
+/* === リセット ===================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* === ベース ======================================================= */
+body {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+    font-size: var(--body-size, 16px);
+    line-height: var(--body-line-height, 1.8);
+    color: var(--color-text, #333);
+    padding: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* === 見出し ======================================================= */
+h1,
+h2,
+h3,
+h4 {
+    margin-top: var(--gap-heading-top, 0.8em);
+    margin-bottom: var(--gap-heading-bot, 0.5em);
+    line-height: var(--heading-line-height, 1.3);
+    font-weight: bold;
+}
+
+h1 {
+    font-size: var(--h1-size, 28px);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.25em;
+}
+
+h2 {
+    font-size: var(--h2-size, 24px);
+    border-bottom: 1px solid var(--color-border, #bdc3c7);
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: var(--h3-size, 20px);
+}
+
+h4 {
+    font-size: var(--body-size, 16px);
+}
+
+/* === 本文要素 ===================================================== */
+p {
+    margin: var(--gap-paragraph) 0;
+}
+
+/* フロントマター paragraphIndent/bodyIndent が有効なときのみ本文段落を字下げ */
+body.indent-body>p {
+    text-indent: 1em;
+}
+
+/* DSLブロック内・テーブルセル内の <p> はマージンを消す */
+.warning p,
+.center p,
+.right p,
+.large p,
+.red p,
+td p,
+th p {
+    margin: 0;
+}
+
+/* figure 内の <p> — marked が ![alt](src) を <p><img> にラップするため個別処理 */
+/* margin を消し、line-height: 0 でインライン画像のベースライン余白も除去する   */
+.figure p {
+    margin: 0;
+    line-height: 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+    margin: 0.5em 0;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+blockquote {
+    border-left: 4px solid var(--color-border);
+    margin: 0.5em 0;
+    padding: 0 1em;
+    color: var(--color-subtle);
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 2em 0;
+}
+
+a {
+    color: var(--color-link, #2980b9);
+}
+
+/* === コード ======================================================= */
+code {
+    font-family: 'Consolas', 'Noto Sans Mono', 'Courier New', monospace;
+    background: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+
+pre {
+    background: var(--color-pre-bg, #f6f8fa);
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    margin: 1em 0;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+
+/* === 画像 ========================================================= */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* === SVG（Mermaid等）============================================= */
+figure.figure svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* SVG テキストのフォント指定（htmlLabels:false 時） */
+figure.figure svg text {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+}
+
+/* コードを図として扱う場合は本文を左寄せにする */
+figure.code-figure {
+    text-align: left;
+}
+
+figure.code-figure pre {
+    margin: 0;
+}
+
+figure.code-figure figcaption {
+    text-align: center;
+}
+
+/* === テーブル ===================================================== */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--table-margin, 1.5em 0);
+}
+
+th,
+td {
+    border: var(--table-cell-border, 1px solid #bdc3c7);
+    padding: var(--table-cell-padding, 0.45em 0.8em);
+    text-align: left;
+}
+
+th {
+    background: var(--color-th-bg);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   表題ページ
+   ============================================================ */
+.title-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--page-content-height, 277mm);
+    text-align: center;
+    padding: 40px;
+    box-sizing: border-box;
+    break-after: page;
+    page-break-after: always;
+}
+
+.title-page .doc-title {
+    font-size: var(--title-size, 36px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.title-page .doc-subtitle {
+    font-size: var(--subtitle-size, 18px);
+    color: var(--color-subtle, #555);
+    margin-top: 0.6em;
+    margin-bottom: 0;
+}
+
+.title-page .cover-image {
+    display: block;
+    max-height: var(--cover-max-height, 360px);
+    max-width: 100%;
+    margin: 1.5em auto 0;
+    object-fit: cover;
+}
+
+/* ============================================================
+   改訂履歴ページ
+   ============================================================ */
+.revision-history {
+    break-after: page;
+    page-break-after: always;
+    padding: 2em 0;
+}
+
+.revision-history-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.2em;
+    margin: 0 0 1em;
+}
+
+.revision-history .col-version {
+    width: 8%;
+    white-space: nowrap;
+}
+
+.revision-history .col-date {
+    width: 18%;
+    white-space: nowrap;
+}
+
+.revision-history .col-author {
+    width: 14%;
+    white-space: nowrap;
+}
+
+.revision-history .col-description {
+    width: 60%;
+}
+
+/* ============================================================
+   目次
+   ============================================================ */
+.toc {
+    break-after: page;
+    page-break-after: always;
+    padding: var(--toc-padding, 2em 0);
+}
+
+.toc-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0 0 1em;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.toc li {
+    padding: var(--toc-item-padding, 0.3em 0);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.toc a {
+    color: var(--color-text, #333);
+    text-decoration: none;
+}
+
+.toc a:hover {
+    color: var(--color-link, #0066cc);
+    text-decoration: underline;
+}
+
+/* ============================================================
+   画面表示（HTML）
+   ============================================================ */
+@media screen {
+
+    /* ページ区切り DSL の視覚的インジケーター（PDF では非表示） */
+    .page-break {
+        margin: 2em 0;
+        border-top: 1px solid #aaa;
+    }
+}
+
+/* ============================================================
+   印刷 / PDF
+   ============================================================ */
+@media print {
+    body {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    h1,
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+
+    figure,
+    .warning {
+        page-break-inside: avoid;
+    }
+
+    /* 大きい表は分割を許可し、表番号だけ取り残されるのを防ぐ */
+    .table-wrapper .table-caption {
+        break-after: avoid;
+        page-break-after: avoid;
+        margin-bottom: 0.3em;
+    }
+
+    .table-wrapper table {
+        break-before: avoid;
+        page-break-before: avoid;
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    .table-wrapper thead {
+        display: table-header-group;
+    }
+
+    .table-wrapper tr,
+    .table-wrapper th,
+    .table-wrapper td {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-x: visible;
+    }
+}
+  </style>
+</head>
+<body class="indent-body">
+
+
+<nav class="toc toc-manual">
+  <p class="toc-title">目次</p>
+  <div class="toc-manual-body">
+<ul>
+<li><ol>
+<li>はじめに ................................ 1</li>
+</ol>
+</li>
+<li><ol start="2">
+<li>手入力目次の設定 ........................ 2</li>
+</ol>
+</li>
+<li><ol start="3">
+<li>コードブロック図番号 .................... 3</li>
+</ol>
+</li>
+<li><ol start="4">
+<li>Mermaidと手入力目次の併用 ............... 4</li>
+</ol>
+</li>
+</ul>
+  </div>
+</nav>
+<h1 id="toc-1">はじめに</h1>
+<p>このサンプルは、次の2点を確認するためのファイルです。</p>
+<ul>
+<li><code>tocManual</code> で目次を手入力できること</li>
+<li>コードブロックの先頭に <code>%%fig: ...%%</code> を書いた場合のみ図番号が付くこと</li>
+</ul>
+<h1 id="toc-2">手入力目次の設定</h1>
+<p>このファイルは <code>toc: true</code> かつ <code>tocManual</code> を指定しています。
+そのため、見出しからの自動目次ではなく、<code>tocManual</code> の内容が優先されます。</p>
+<h1 id="toc-3">コードブロック図番号</h1>
+<h2 id="toc-4">図番号あり（ディレクティブあり）</h2>
+<figure class="figure code-figure"><pre><code class="language-js">function normalizeUserName(name) {
+    return String(name).trim().replace(/\s+/g, &quot; &quot;);
+}
+</code></pre><figcaption>利用者名の正規化処理</figcaption></figure>
+<h2 id="toc-5">図番号なし（ディレクティブなし）</h2>
+<pre><code class="language-js">function toDisplayDate(isoDate) {
+    const d = new Date(isoDate);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+</code></pre>
+<h1 id="toc-6">Mermaidと手入力目次の併用</h1>
+<figure class="figure"><svg id="m0" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 534px;" viewBox="0 0 534 70" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#m0{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:16px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#m0 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#m0 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#m0 .error-icon{fill:#552222;}#m0 .error-text{fill:#552222;stroke:#552222;}#m0 .edge-thickness-normal{stroke-width:1px;}#m0 .edge-thickness-thick{stroke-width:3.5px;}#m0 .edge-pattern-solid{stroke-dasharray:0;}#m0 .edge-thickness-invisible{stroke-width:0;fill:none;}#m0 .edge-pattern-dashed{stroke-dasharray:3;}#m0 .edge-pattern-dotted{stroke-dasharray:2;}#m0 .marker{fill:#666;stroke:#666;}#m0 .marker.cross{stroke:#666;}#m0 svg{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:16px;}#m0 p{margin:0;}#m0 .label{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;color:#000000;}#m0 .cluster-label text{fill:#333;}#m0 .cluster-label span{color:#333;}#m0 .cluster-label span p{background-color:transparent;}#m0 .label text,#m0 span{fill:#000000;color:#000000;}#m0 .node rect,#m0 .node circle,#m0 .node ellipse,#m0 .node polygon,#m0 .node path{fill:#eee;stroke:#999;stroke-width:1px;}#m0 .rough-node .label text,#m0 .node .label text,#m0 .image-shape .label,#m0 .icon-shape .label{text-anchor:middle;}#m0 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#m0 .rough-node .label,#m0 .node .label,#m0 .image-shape .label,#m0 .icon-shape .label{text-align:center;}#m0 .node.clickable{cursor:pointer;}#m0 .root .anchor path{fill:#666!important;stroke-width:0;stroke:#666;}#m0 .arrowheadPath{fill:#333333;}#m0 .edgePath .path{stroke:#666;stroke-width:1px;}#m0 .flowchart-link{stroke:#666;fill:none;}#m0 .edgeLabel{background-color:white;text-align:center;}#m0 .edgeLabel p{background-color:white;}#m0 .edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#m0 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#m0 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#m0 .cluster text{fill:#333;}#m0 .cluster span{color:#333;}#m0 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-index:100;}#m0 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#000000;}#m0 rect.text{fill:none;stroke-width:0;}#m0 .icon-shape,#m0 .image-shape{background-color:white;text-align:center;}#m0 .icon-shape p,#m0 .image-shape p{background-color:white;padding:2px;}#m0 .icon-shape .label rect,#m0 .image-shape .label rect{opacity:0.5;background-color:white;fill:white;}#m0 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#m0 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#m0 .node .neo-node{stroke:#999;}#m0 [data-look="neo"].node rect,#m0 [data-look="neo"].cluster rect,#m0 [data-look="neo"].node polygon{stroke:url(#m0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m0 [data-look="neo"].node path{stroke:url(#m0-gradient);stroke-width:1px;}#m0 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m0 [data-look="neo"].node .neo-line path{stroke:#999;filter:none;}#m0 [data-look="neo"].node circle{stroke:url(#m0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m0 [data-look="neo"].node circle .state-start{fill:#000000;}#m0 [data-look="neo"].icon-shape .icon{fill:url(#m0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m0 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#m0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m0 :root{--mermaid-font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;}</style><g><marker id="m0_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="m0_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="m0_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="m0_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="m0_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="m0_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="m0_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="m0_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="m0_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="m0_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="m0_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="m0_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M100,35L104.167,35C108.333,35,116.667,35,124.333,35C132,35,139,35,142.5,35L146,35" id="m0-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTAwLCJ5IjozNX0seyJ4IjoxMjUsInkiOjM1fSx7IngiOjE1MCwieSI6MzV9XQ==" data-look="classic" marker-end="url(#m0_flowchart-v2-pointEnd)"></path><path d="M242,35L246.167,35C250.333,35,258.667,35,266.333,35C274,35,281,35,284.5,35L288,35" id="m0-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MjQyLCJ5IjozNX0seyJ4IjoyNjcsInkiOjM1fSx7IngiOjI5MiwieSI6MzV9XQ==" data-look="classic" marker-end="url(#m0_flowchart-v2-pointEnd)"></path><path d="M384,35L388.167,35C392.333,35,400.667,35,408.333,35C416,35,423,35,426.5,35L430,35" id="m0-L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6Mzg0LCJ5IjozNX0seyJ4Ijo0MDksInkiOjM1fSx7IngiOjQzNCwieSI6MzV9XQ==" data-look="classic" marker-end="url(#m0_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="m0-flowchart-A-0" data-look="classic" transform="translate(54, 35)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">入力</span></div></foreignObject></g></g><g class="node default" id="m0-flowchart-B-1" data-look="classic" transform="translate(196, 35)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">検証</span></div></foreignObject></g></g><g class="node default" id="m0-flowchart-C-3" data-look="classic" transform="translate(338, 35)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">保存</span></div></foreignObject></g></g><g class="node default" id="m0-flowchart-D-5" data-look="classic" transform="translate(480, 35)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">完了</span></div></foreignObject></g></g></g></g></g><defs><filter id="m0-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="m0-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="m0-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(0, 0%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(0, 0%, 88.9215686275%)" stop-opacity="1"></stop></linearGradient></svg><figcaption>業務フロー図（手入力目次サンプル）</figcaption></figure>
+<h2 id="toc-7">Mermaid高さ指定（height）</h2>
+<p>先頭に <code>%%height: 60mm%%</code> を書くと、図の縦方向サイズ上限を指定できます。</p>
+<figure class="figure"><svg id="m1" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 172px;; max-height:60mm;height:auto;max-width:100%;display:block;margin:0 auto;" viewBox="0 0 172 590" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#m1{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:16px;fill:#000000;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#m1 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#m1 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#m1 .error-icon{fill:#552222;}#m1 .error-text{fill:#552222;stroke:#552222;}#m1 .edge-thickness-normal{stroke-width:1px;}#m1 .edge-thickness-thick{stroke-width:3.5px;}#m1 .edge-pattern-solid{stroke-dasharray:0;}#m1 .edge-thickness-invisible{stroke-width:0;fill:none;}#m1 .edge-pattern-dashed{stroke-dasharray:3;}#m1 .edge-pattern-dotted{stroke-dasharray:2;}#m1 .marker{fill:#666;stroke:#666;}#m1 .marker.cross{stroke:#666;}#m1 svg{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:16px;}#m1 p{margin:0;}#m1 .label{font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;color:#000000;}#m1 .cluster-label text{fill:#333;}#m1 .cluster-label span{color:#333;}#m1 .cluster-label span p{background-color:transparent;}#m1 .label text,#m1 span{fill:#000000;color:#000000;}#m1 .node rect,#m1 .node circle,#m1 .node ellipse,#m1 .node polygon,#m1 .node path{fill:#eee;stroke:#999;stroke-width:1px;}#m1 .rough-node .label text,#m1 .node .label text,#m1 .image-shape .label,#m1 .icon-shape .label{text-anchor:middle;}#m1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#m1 .rough-node .label,#m1 .node .label,#m1 .image-shape .label,#m1 .icon-shape .label{text-align:center;}#m1 .node.clickable{cursor:pointer;}#m1 .root .anchor path{fill:#666!important;stroke-width:0;stroke:#666;}#m1 .arrowheadPath{fill:#333333;}#m1 .edgePath .path{stroke:#666;stroke-width:1px;}#m1 .flowchart-link{stroke:#666;fill:none;}#m1 .edgeLabel{background-color:white;text-align:center;}#m1 .edgeLabel p{background-color:white;}#m1 .edgeLabel rect{opacity:0.5;background-color:white;fill:white;}#m1 .labelBkg{background-color:rgba(255, 255, 255, 0.5);}#m1 .cluster rect{fill:hsl(0, 0%, 98.9215686275%);stroke:#707070;stroke-width:1px;}#m1 .cluster text{fill:#333;}#m1 .cluster span{color:#333;}#m1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;font-size:12px;background:hsl(-160, 0%, 93.3333333333%);border:1px solid #707070;border-radius:2px;pointer-events:none;z-index:100;}#m1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#000000;}#m1 rect.text{fill:none;stroke-width:0;}#m1 .icon-shape,#m1 .image-shape{background-color:white;text-align:center;}#m1 .icon-shape p,#m1 .image-shape p{background-color:white;padding:2px;}#m1 .icon-shape .label rect,#m1 .image-shape .label rect{opacity:0.5;background-color:white;fill:white;}#m1 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#m1 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#m1 .node .neo-node{stroke:#999;}#m1 [data-look="neo"].node rect,#m1 [data-look="neo"].cluster rect,#m1 [data-look="neo"].node polygon{stroke:url(#m1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m1 [data-look="neo"].node path{stroke:url(#m1-gradient);stroke-width:1px;}#m1 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m1 [data-look="neo"].node .neo-line path{stroke:#999;filter:none;}#m1 [data-look="neo"].node circle{stroke:url(#m1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m1 [data-look="neo"].node circle .state-start{fill:#000000;}#m1 [data-look="neo"].icon-shape .icon{fill:url(#m1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m1 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#m1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#m1 :root{--mermaid-font-family:'Meiryo','Yu Gothic','MS PGothic',sans-serif;}</style><g><marker id="m1_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="m1_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="m1_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="m1_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="m1_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="m1_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="m1_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="m1_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="m1_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="m1_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="m1_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="m1_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M86,62L86,66.167C86,70.333,86,78.667,86,86.333C86,94,86,101,86,104.5L86,108" id="m1-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6ODYsInkiOjYyfSx7IngiOjg2LCJ5Ijo4N30seyJ4Ijo4NiwieSI6MTEyfV0=" data-look="classic" marker-end="url(#m1_flowchart-v2-pointEnd)"></path><path d="M86,166L86,170.167C86,174.333,86,182.667,86,190.333C86,198,86,205,86,208.5L86,212" id="m1-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6ODYsInkiOjE2Nn0seyJ4Ijo4NiwieSI6MTkxfSx7IngiOjg2LCJ5IjoyMTZ9XQ==" data-look="classic" marker-end="url(#m1_flowchart-v2-pointEnd)"></path><path d="M86,270L86,274.167C86,278.333,86,286.667,86,294.333C86,302,86,309,86,312.5L86,316" id="m1-L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6ODYsInkiOjI3MH0seyJ4Ijo4NiwieSI6Mjk1fSx7IngiOjg2LCJ5IjozMjB9XQ==" data-look="classic" marker-end="url(#m1_flowchart-v2-pointEnd)"></path><path d="M86,374L86,378.167C86,382.333,86,390.667,86,398.333C86,406,86,413,86,416.5L86,420" id="m1-L_D_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_E_0" data-points="W3sieCI6ODYsInkiOjM3NH0seyJ4Ijo4NiwieSI6Mzk5fSx7IngiOjg2LCJ5Ijo0MjR9XQ==" data-look="classic" marker-end="url(#m1_flowchart-v2-pointEnd)"></path><path d="M86,478L86,482.167C86,486.333,86,494.667,86,502.333C86,510,86,517,86,520.5L86,524" id="m1-L_E_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_F_0" data-points="W3sieCI6ODYsInkiOjQ3OH0seyJ4Ijo4NiwieSI6NTAzfSx7IngiOjg2LCJ5Ijo1Mjh9XQ==" data-look="classic" marker-end="url(#m1_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_F_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="m1-flowchart-A-0" data-look="classic" transform="translate(86, 35)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">開始</span></div></foreignObject></g></g><g class="node default" id="m1-flowchart-B-1" data-look="classic" transform="translate(86, 139)"><rect class="basic label-container" style="" x="-78" y="-27" width="156" height="54"></rect><g class="label" style="" transform="translate(-48, -12)"><rect></rect><foreignObject width="96" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">入力チェック</span></div></foreignObject></g></g><g class="node default" id="m1-flowchart-C-3" data-look="classic" transform="translate(86, 243)"><rect class="basic label-container" style="" x="-54" y="-27" width="108" height="54"></rect><g class="label" style="" transform="translate(-24, -12)"><rect></rect><foreignObject width="48" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">正規化</span></div></foreignObject></g></g><g class="node default" id="m1-flowchart-D-5" data-look="classic" transform="translate(86, 347)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">保存</span></div></foreignObject></g></g><g class="node default" id="m1-flowchart-E-7" data-look="classic" transform="translate(86, 451)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">通知</span></div></foreignObject></g></g><g class="node default" id="m1-flowchart-F-9" data-look="classic" transform="translate(86, 555)"><rect class="basic label-container" style="" x="-46" y="-27" width="92" height="54"></rect><g class="label" style="" transform="translate(-16, -12)"><rect></rect><foreignObject width="32" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 100%; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel">終了</span></div></foreignObject></g></g></g></g></g><defs><filter id="m1-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="m1-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="m1-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="hsl(0, 0%, 83.3333333333%)" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(0, 0%, 88.9215686275%)" stop-opacity="1"></stop></linearGradient></svg><figcaption>業務フロー図（height指定サンプル）</figcaption></figure>
+<h1 id="toc-8">長いテーブルの改ページ検証</h1>
+<p>このセクションは、表が1ページに収まりきらない場合の挙動を確認するためのサンプルです。</p>
+<h2 id="toc-9">改修内容の説明</h2>
+<p>今回の改修では、印刷時の改ページルールを次の方針に変更しています。</p>
+<ul>
+<li>表全体の分割禁止はやめ、長い表はページ分割を許可する</li>
+<li>表番号（キャプション）直後で改ページされにくくする</li>
+<li>ページ分割時もヘッダー行を繰り返し表示する</li>
+</ul>
+<p>これにより、「表番号だけ前ページに残って表本体が次ページへ行く」崩れを軽減できます。</p>
+<h2 id="toc-10">長いテーブル（改ページ確認用）</h2>
+
+<div class="table-wrapper">
+<p class="table-caption">機能一覧（長い表・表番号付き改ページ確認）</p>
+<table style="font-size:13px"><colgroup><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:25%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:16.666666666666664%"></colgroup>
+<thead>
+<tr>
+<th>No.</th>
+<th>機能ID</th>
+<th>機能名</th>
+<th>担当者</th>
+<th>優先度</th>
+<th>ステータス</th>
+<th>開始日</th>
+<th>完了予定日</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>F-001</td>
+<td>利用者管理</td>
+<td>田中</td>
+<td>高</td>
+<td>完了</td>
+<td>2026-04-01</td>
+<td>2026-04-10</td>
+<td>初期実装</td>
+</tr>
+<tr>
+<td>2</td>
+<td>F-002</td>
+<td>施設管理</td>
+<td>鈴木</td>
+<td>高</td>
+<td>完了</td>
+<td>2026-04-03</td>
+<td>2026-04-12</td>
+<td>CRUD対応</td>
+</tr>
+<tr>
+<td>3</td>
+<td>F-003</td>
+<td>権限管理</td>
+<td>佐藤</td>
+<td>高</td>
+<td>進行中</td>
+<td>2026-04-05</td>
+<td>2026-05-01</td>
+<td>RBAC整理</td>
+</tr>
+<tr>
+<td>4</td>
+<td>F-004</td>
+<td>スケジュール</td>
+<td>高橋</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-07</td>
+<td>2026-05-08</td>
+<td>月表示追加</td>
+</tr>
+<tr>
+<td>5</td>
+<td>F-005</td>
+<td>日報作成</td>
+<td>伊藤</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-10</td>
+<td>2026-05-12</td>
+<td>自動保存</td>
+</tr>
+<tr>
+<td>6</td>
+<td>F-006</td>
+<td>日報一覧</td>
+<td>渡辺</td>
+<td>中</td>
+<td>完了</td>
+<td>2026-04-11</td>
+<td>2026-04-25</td>
+<td>検索条件追加</td>
+</tr>
+<tr>
+<td>7</td>
+<td>F-007</td>
+<td>月次集計</td>
+<td>山本</td>
+<td>中</td>
+<td>未着手</td>
+<td>2026-05-01</td>
+<td>2026-05-31</td>
+<td>集計ロジック検討</td>
+</tr>
+<tr>
+<td>8</td>
+<td>F-008</td>
+<td>請求書出力</td>
+<td>中村</td>
+<td>低</td>
+<td>未着手</td>
+<td>2026-05-03</td>
+<td>2026-06-10</td>
+<td>PDF出力</td>
+</tr>
+<tr>
+<td>9</td>
+<td>F-009</td>
+<td>メール通知</td>
+<td>小林</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-20</td>
+<td>2026-05-20</td>
+<td>テンプレート整備</td>
+</tr>
+<tr>
+<td>10</td>
+<td>F-010</td>
+<td>監査ログ</td>
+<td>加藤</td>
+<td>中</td>
+<td>未着手</td>
+<td>2026-05-10</td>
+<td>2026-06-01</td>
+<td>監査要件対応</td>
+</tr>
+<tr>
+<td>11</td>
+<td>F-011</td>
+<td>CSV出力</td>
+<td>吉田</td>
+<td>低</td>
+<td>未着手</td>
+<td>2026-05-12</td>
+<td>2026-06-05</td>
+<td>文字コード検討</td>
+</tr>
+<tr>
+<td>12</td>
+<td>F-012</td>
+<td>Excel出力</td>
+<td>山田</td>
+<td>低</td>
+<td>未着手</td>
+<td>2026-05-15</td>
+<td>2026-06-15</td>
+<td>罫線スタイル</td>
+</tr>
+<tr>
+<td>13</td>
+<td>F-013</td>
+<td>API認証</td>
+<td>松本</td>
+<td>高</td>
+<td>完了</td>
+<td>2026-04-02</td>
+<td>2026-04-18</td>
+<td>JWT導入</td>
+</tr>
+<tr>
+<td>14</td>
+<td>F-014</td>
+<td>APIレート制限</td>
+<td>井上</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-22</td>
+<td>2026-05-18</td>
+<td>Redis利用</td>
+</tr>
+<tr>
+<td>15</td>
+<td>F-015</td>
+<td>障害通知</td>
+<td>木村</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-24</td>
+<td>2026-05-25</td>
+<td>Slack連携</td>
+</tr>
+<tr>
+<td>16</td>
+<td>F-016</td>
+<td>二段階認証</td>
+<td>林</td>
+<td>高</td>
+<td>未着手</td>
+<td>2026-05-18</td>
+<td>2026-06-20</td>
+<td>SMS検証</td>
+</tr>
+<tr>
+<td>17</td>
+<td>F-017</td>
+<td>パスワード再設定</td>
+<td>清水</td>
+<td>中</td>
+<td>完了</td>
+<td>2026-04-14</td>
+<td>2026-04-28</td>
+<td>トークン方式</td>
+</tr>
+<tr>
+<td>18</td>
+<td>F-018</td>
+<td>お知らせ管理</td>
+<td>阿部</td>
+<td>低</td>
+<td>進行中</td>
+<td>2026-04-28</td>
+<td>2026-05-26</td>
+<td>公開期間対応</td>
+</tr>
+<tr>
+<td>19</td>
+<td>F-019</td>
+<td>添付ファイル管理</td>
+<td>森</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-04-30</td>
+<td>2026-05-30</td>
+<td>容量制限</td>
+</tr>
+<tr>
+<td>20</td>
+<td>F-020</td>
+<td>画像最適化</td>
+<td>池田</td>
+<td>低</td>
+<td>未着手</td>
+<td>2026-05-20</td>
+<td>2026-06-25</td>
+<td>圧縮率調整</td>
+</tr>
+<tr>
+<td>21</td>
+<td>F-021</td>
+<td>ログイン履歴</td>
+<td>橋本</td>
+<td>中</td>
+<td>完了</td>
+<td>2026-04-09</td>
+<td>2026-04-21</td>
+<td>IP記録</td>
+</tr>
+<tr>
+<td>22</td>
+<td>F-022</td>
+<td>利用統計ダッシュボード</td>
+<td>山崎</td>
+<td>低</td>
+<td>進行中</td>
+<td>2026-05-05</td>
+<td>2026-06-05</td>
+<td>グラフ追加</td>
+</tr>
+<tr>
+<td>23</td>
+<td>F-023</td>
+<td>バックアップ管理</td>
+<td>石井</td>
+<td>高</td>
+<td>進行中</td>
+<td>2026-04-26</td>
+<td>2026-05-28</td>
+<td>定期実行</td>
+</tr>
+<tr>
+<td>24</td>
+<td>F-024</td>
+<td>復旧手順ガイド</td>
+<td>小川</td>
+<td>中</td>
+<td>未着手</td>
+<td>2026-05-25</td>
+<td>2026-06-30</td>
+<td>Runbook整備</td>
+</tr>
+<tr>
+<td>25</td>
+<td>F-025</td>
+<td>外部連携API</td>
+<td>前田</td>
+<td>高</td>
+<td>未着手</td>
+<td>2026-06-01</td>
+<td>2026-07-10</td>
+<td>認可方式検討</td>
+</tr>
+<tr>
+<td>26</td>
+<td>F-026</td>
+<td>webhook受信</td>
+<td>岡田</td>
+<td>中</td>
+<td>未着手</td>
+<td>2026-06-03</td>
+<td>2026-07-01</td>
+<td>冪等性対応</td>
+</tr>
+<tr>
+<td>27</td>
+<td>F-027</td>
+<td>監視アラート</td>
+<td>藤田</td>
+<td>中</td>
+<td>進行中</td>
+<td>2026-05-02</td>
+<td>2026-05-29</td>
+<td>閾値調整</td>
+</tr>
+<tr>
+<td>28</td>
+<td>F-028</td>
+<td>システム設定画面</td>
+<td>後藤</td>
+<td>低</td>
+<td>進行中</td>
+<td>2026-05-07</td>
+<td>2026-06-02</td>
+<td>UI調整</td>
+</tr>
+<tr>
+<td>29</td>
+<td>F-029</td>
+<td>データ移行ツール</td>
+<td>長谷川</td>
+<td>高</td>
+<td>未着手</td>
+<td>2026-06-05</td>
+<td>2026-07-15</td>
+<td>変換仕様作成</td>
+</tr>
+<tr>
+<td>30</td>
+<td>F-030</td>
+<td>稼働レポート</td>
+<td>村上</td>
+<td>低</td>
+<td>未着手</td>
+<td>2026-06-10</td>
+<td>2026-07-20</td>
+<td>帳票フォーマット</td>
+</tr>
+</tbody></table>
+</div>
+<h2 id="toc-11">colWidths 指定サンプル</h2>
+<p><code>colWidths</code> を使うと、列幅を直接指定できます（% や px をそのまま記述可能）。</p>
+
+<div class="table-wrapper">
+<p class="table-caption">担当者別タスク概要（colWidths指定例）</p>
+<table style="font-size:12px"><colgroup><col style="width:20%"><col style="width:50%"><col style="width:30%"></colgroup>
+<thead>
+<tr>
+<th>担当者</th>
+<th>主担当機能</th>
+<th>進捗</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>田中</td>
+<td>利用者管理 / 認証 / CSV出力</td>
+<td>進行中</td>
+</tr>
+<tr>
+<td>鈴木</td>
+<td>施設管理 / メール通知</td>
+<td>進行中</td>
+</tr>
+<tr>
+<td>佐藤</td>
+<td>権限管理 / スケジュール</td>
+<td>未着手</td>
+</tr>
+</tbody></table>
+</div>
+
+</body>
+</html>

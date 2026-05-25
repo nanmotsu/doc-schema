@@ -137,10 +137,22 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         const lines = trimmed.split('\n');
         const caption = lines[0]?.trim() ?? '';
         const bodyMd = lines.slice(1).join('\n');
+        const tableFontSize = attrs.fontSize ?? attrs.tableFontSize ?? null;
+        const colWidthRaw = attrs.colRatio ?? attrs.colWidths ?? null;
+        const colWidths = parseColumnWidths(colWidthRaw);
+
+        let tableHtml = parseFn(bodyMd).trim();
+        if (tableFontSize) {
+            tableHtml = appendStyleToFirstTable(tableHtml, `font-size:${tableFontSize}`);
+        }
+        if (colWidths.length > 0) {
+            tableHtml = injectColgroupToFirstTable(tableHtml, colWidths);
+        }
+
         return [
             `<${block.element} class="${block.class}">`,
             `<p class="table-caption">${caption}</p>`,
-            parseFn(bodyMd).trim(),
+            tableHtml,
             `</${block.element}>`,
         ].join('\n');
     }
@@ -159,6 +171,50 @@ function buildSizeStyle(width, height) {
     if (width) parts.push(`width:${width}`);
     if (height && height !== 'auto') parts.push(`height:${height}`);
     return parts.join(';');
+}
+
+/**
+ * 先頭の <table> タグへ style を追記する。
+ */
+function appendStyleToFirstTable(tableHtml, styleChunk) {
+    if (!styleChunk) return tableHtml;
+    return tableHtml.replace(/<table\b([^>]*)>/i, (match, attrs) => {
+        if (/\sstyle="/i.test(attrs)) {
+            return `<table${attrs.replace(/\sstyle="([^"]*)"/i, (_m, s) => ` style="${s}; ${styleChunk}"`)}>`;
+        }
+        return `<table${attrs} style="${styleChunk}">`;
+    });
+}
+
+/**
+ * 列幅比率文字列を列幅配列へ変換する。
+ * 例: "2,3,1" -> ["33.3333%","50%","16.6667%"]
+ */
+function parseColumnWidths(raw) {
+    if (!raw) return [];
+    const tokens = String(raw)
+        .split(/[,:]/)
+        .map(v => v.trim())
+        .filter(Boolean);
+    if (tokens.length === 0) return [];
+
+    const numeric = tokens.map(v => Number(v));
+    const allNumeric = numeric.every(v => Number.isFinite(v) && v > 0);
+    if (allNumeric) {
+        const total = numeric.reduce((sum, v) => sum + v, 0);
+        return numeric.map(v => `${(v / total) * 100}%`);
+    }
+
+    return tokens;
+}
+
+/**
+ * 先頭の <table> タグ直後へ colgroup を挿入する。
+ */
+function injectColgroupToFirstTable(tableHtml, widths) {
+    if (!Array.isArray(widths) || widths.length === 0) return tableHtml;
+    const colgroup = `<colgroup>${widths.map(w => `<col style="width:${w}">`).join('')}</colgroup>`;
+    return tableHtml.replace(/<table\b([^>]*)>/i, `<table$1>${colgroup}`);
 }
 
 /**

@@ -336,10 +336,31 @@ function buildSlugMap(markdown) {
 
 /**
  * 見出しリストからリンク付き目次 HTML を生成する。
- * meta.toc === false のとき、または見出しがゼロのとき空文字を返す。
+ * - 既定: 見出しから自動生成
+ * - meta.tocManual がある場合: 手入力目次を優先
+ * - meta.toc === false の場合: 目次を出力しない
  */
-function buildTOC(headings, meta) {
+function buildTOC(headings, meta, parseFn) {
     if (meta.toc === false) return "";
+
+    const manualRaw = meta.tocManual ?? null;
+    const hasManualTOC = (typeof manualRaw === "string" && manualRaw.trim() !== "")
+        || (Array.isArray(manualRaw) && manualRaw.length > 0);
+    if (hasManualTOC) {
+        const manualMd = Array.isArray(manualRaw)
+            ? manualRaw.map(v => String(v ?? "")).join("\n")
+            : String(manualRaw);
+        const manualHtml = parseFn(manualMd).trim();
+        return [
+            '<nav class="toc toc-manual">',
+            '  <p class="toc-title">目次</p>',
+            '  <div class="toc-manual-body">',
+            manualHtml,
+            '  </div>',
+            '</nav>',
+        ].join("\n");
+    }
+
     if (headings.length === 0) return "";
 
     // styleConfig.heading と同じレベル定義で番号を JS 側で再現
@@ -412,6 +433,87 @@ function parseMd(src) {
     return marked.parse(src);
 }
 
+/**
+ * HTMLエスケープ済みコード文字列の先頭ディレクティブを解析する。
+ * - %%fig: キャプション%%
+ * - %%figure: キャプション%%
+ * - %%caption: キャプション%%
+ * ディレクティブがある場合のみ図番号付きキャプション化する。
+ */
+function parseCodeFigureDirective(escapedCode) {
+    const m = escapedCode.match(/^%%\s*(?:fig|figure|caption):\s*(.*?)\s*%%\s*(?:\r?\n|$)/i);
+    if (!m) return { caption: null, code: escapedCode };
+    const caption = (m[1] ?? "").trim();
+    const code = escapedCode.slice(m[0].length);
+    return { caption: caption || null, code };
+}
+
+function escapeHtml(text) {
+    return String(text ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+/**
+ * Mermaidコード先頭のディレクティブを抽出する。
+ * 対応:
+ *   %%width: 70%%
+ *   %%height: 180mm%%
+ */
+function parseMermaidDirectives(decodedCode) {
+    const directives = { width: null, height: null };
+    let code = decodedCode;
+
+    while (true) {
+        const m = code.match(/^%%\s*(width|height)\s*:\s*([^%\r\n]+)\s*%%\s*(?:\r?\n|$)/i);
+        if (!m) break;
+        directives[m[1].toLowerCase()] = m[2].trim();
+        code = code.slice(m[0].length);
+    }
+
+    return { code, ...directives };
+}
+
+function appendInlineStyleToSvg(svg, styleChunk) {
+    if (!styleChunk) return svg;
+    if (!/^<svg\b/i.test(svg)) return svg;
+
+    if (/^<svg\b[^>]*\sstyle="/i.test(svg)) {
+        return svg.replace(/^<svg\b([^>]*?)\sstyle="([^"]*)"/i, (_m, before, style) =>
+            `<svg${before} style="${style}; ${styleChunk}"`
+        );
+    }
+
+    return svg.replace(/^<svg\b/i, `<svg style="${styleChunk}"`);
+}
+
+/**
+ * 本文段落の先頭字下げ設定をフロントマターから判定する。
+ * 優先順位: フロントマター > page.json。
+ * paragraphIndent または bodyIndent を true/on/yes/1 にすると有効。
+ */
+function parseBoolLike(raw, fallback = false) {
+    if (raw === undefined || raw === null) return fallback;
+    if (typeof raw === "boolean") return raw;
+    if (typeof raw === "number") return raw !== 0;
+    if (typeof raw === "string") {
+        const val = raw.trim().toLowerCase();
+        return ["1", "true", "on", "yes", "y"].includes(val);
+    }
+    return fallback;
+}
+
+function isParagraphIndentEnabled(meta, pageCfg) {
+    const fmRaw = meta.paragraphIndent ?? meta.bodyIndent;
+    if (fmRaw !== undefined) return parseBoolLike(fmRaw, false);
+
+    const cfgRaw = pageCfg?.paragraphIndent ?? pageCfg?.bodyIndent;
+    return parseBoolLike(cfgRaw, false);
+}
+
 // ── 変換 ───────────────────────────────────────────────────
 const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
@@ -453,7 +555,7 @@ const bodyHtml = rawBodyHtml.replace(/<h([1-3])>/g, (_, lv) => {
 
 
 // Mermaid コードブロックを検出・収集しプレースホルダーに置換。
-// ブロック先頭の %%width: 70%% ディレクティブで figure の横幅を指定可能。
+// ブロック先頭の %%width: 70%% / %%height: 180mm%% ディレクティブでサイズ指定可能。
 const mermaidBlocks = [];
 const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>(?:\s*<p>([\s\S]*?)<\/p>)?/g;
 let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) => {
@@ -464,18 +566,36 @@ let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) =
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
-    // %%width: 70%% のようなディレクティブを先頭行から取り出してコードから除去
-    const widthMatch = decoded.match(/^%%\s*width:\s*([\d.]+%?)\s*%%\s*\n/);
-    const width = widthMatch ? widthMatch[1] : null;
-    const cleanCode = widthMatch ? decoded.slice(widthMatch[0].length) : decoded;
-    mermaidBlocks.push({ idx, code: cleanCode, caption: (caption || '').trim(), width });
+    const { code: cleanCode, width, height } = parseMermaidDirectives(decoded);
+    mermaidBlocks.push({ idx, code: cleanCode, caption: (caption || '').trim(), width, height });
     return `__MERMAID_${idx}__`;
+});
+
+// 通常コードブロックを任意で図化する。
+// 先頭行に %%fig: キャプション%% を書いた場合のみ figure+figcaption に変換。
+const codeBlockRegex = /<pre><code(?: class="([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g;
+processedBodyHtml = processedBodyHtml.replace(codeBlockRegex, (_, klass, escapedCode) => {
+    const classes = klass ? ` class="${klass}"` : "";
+    const isMermaid = typeof klass === "string" && /(?:^|\s)language-mermaid(?:\s|$)/.test(klass);
+    if (isMermaid) return `<pre><code${classes}>${escapedCode}</code></pre>`;
+
+    const { caption, code } = parseCodeFigureDirective(escapedCode);
+    if (!caption) return `<pre><code${classes}>${escapedCode}</code></pre>`;
+
+    return [
+        '<figure class="figure code-figure">',
+        `<pre><code${classes}>${code}</code></pre>`,
+        `<figcaption>${escapeHtml(caption)}</figcaption>`,
+        '</figure>',
+    ].join("");
 });
 const hasMermaid = mermaidBlocks.length > 0;
 
 const titlePageHtml = buildTitlePage(meta);
 const revisionHistoryHtml = buildRevisionHistoryPage(meta);
-const tocHtml = buildTOC(headings, meta);
+const tocHtml = buildTOC(headings, meta, parseMd);
+const paragraphIndentEnabled = isParagraphIndentEnabled(meta, pageConfig);
+const bodyClass = paragraphIndentEnabled ? ' class="indent-body"' : "";
 
 // タイトル: フロントマター title → 本文の最初の h1 → ファイル名
 const title = meta.title || body.match(/^#\s+(.+)/m)?.[1] || baseName;
@@ -494,7 +614,7 @@ const htmlContent = `<!DOCTYPE html>
 ${cssContent}
   </style>
 </head>
-<body>
+<body${bodyClass}>
 ${titlePageHtml}
 ${revisionHistoryHtml}
 ${tocHtml}
@@ -569,10 +689,13 @@ if (hasMermaid) {
 
     // 取得したSVGをfigureにラップしてプレースホルダーを置換
     for (let i = 0; i < mermaidBlocks.length; i++) {
-        const { caption, width } = mermaidBlocks[i];
-        const figcaption = caption ? `<figcaption>${caption}</figcaption>` : '<figcaption></figcaption>';
+        const { caption, width, height } = mermaidBlocks[i];
+        const figcaption = caption ? `<figcaption>${caption}</figcaption>` : '';
         const widthStyle = width ? ` style="width:${width};margin:0 auto;"` : '';
-        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure"${widthStyle}>${fixedSvgs[i]}${figcaption}</figure>`);
+        const svgWithHeight = height
+            ? appendInlineStyleToSvg(fixedSvgs[i], `max-height:${height};height:auto;max-width:100%;display:block;margin:0 auto;`)
+            : fixedSvgs[i];
+        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure"${widthStyle}>${svgWithHeight}${figcaption}</figure>`);
     }
 }
 
