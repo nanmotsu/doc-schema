@@ -199,6 +199,21 @@
             }
         },
         {
+            "label": "変換: Word生成（現在のファイル）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/build_word.mjs",
+                "${file}"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
             "label": "変換: スニペット生成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",

@@ -106,7 +106,7 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
             if (root) {
                 imgHtml = imgHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
                     if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
-                    const clean = src.replace(/^\.\//,  "");
+                    const clean = src.replace(/^\.\//, "");
                     if (origin === 'internal') {
                         const abs = resolve(root, clean).replace(/\\/g, "/");
                         return `${pre}file:///${abs}${post}`;
@@ -135,8 +135,10 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
     // captionPosition="top": table（上キャプション + 表）
     if (block.captionPosition === "top") {
         const lines = trimmed.split('\n');
-        const caption = lines[0]?.trim() ?? '';
-        const bodyMd = lines.slice(1).join('\n');
+        // 先頭行が | で始まる場合はキャプションなし（表の本体として扱う）
+        const firstIsTableRow = /^\|/.test(lines[0]?.trim() ?? '');
+        const caption = firstIsTableRow ? '' : (lines[0]?.trim() ?? '');
+        const bodyMd = firstIsTableRow ? trimmed : lines.slice(1).join('\n');
         const tableFontSize = attrs.fontSize ?? attrs.tableFontSize ?? null;
         const colWidthRaw = attrs.colRatio ?? attrs.colWidths ?? null;
         const colWidths = parseColumnWidths(colWidthRaw);
@@ -151,10 +153,10 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
 
         return [
             `<${block.element} class="${block.class}">`,
-            `<p class="table-caption">${caption}</p>`,
+            caption ? `<p class="table-caption">${caption}</p>` : '',
             tableHtml,
             `</${block.element}>`,
-        ].join('\n');
+        ].filter(Boolean).join('\n');
     }
 
     // デフォルト: 通常ブロック（attrs.width でインライン幅指定可能）
@@ -210,11 +212,55 @@ function parseColumnWidths(raw) {
 
 /**
  * 先頭の <table> タグ直後へ colgroup を挿入する。
+ * colgroup を付与する場合は table-layout: fixed も同時に設定し、
+ * 列幅比率がヘッダーのコンテンツ幅に引っ張られないようにする。
  */
 function injectColgroupToFirstTable(tableHtml, widths) {
     if (!Array.isArray(widths) || widths.length === 0) return tableHtml;
     const colgroup = `<colgroup>${widths.map(w => `<col style="width:${w}">`).join('')}</colgroup>`;
-    return tableHtml.replace(/<table\b([^>]*)>/i, `<table$1>${colgroup}`);
+    return tableHtml.replace(/<table\b([^>]*)>/i, (_, attrs) => {
+        // class="col-fixed" を付与（既存 class があれば追記）
+        let newAttrs = /\bclass="/i.test(attrs)
+            ? attrs.replace(/\bclass="([^"]*)"/i, 'class="$1 col-fixed"')
+            : attrs + ' class="col-fixed"';
+        // table-layout: fixed を style に追記（既存 style があれば追記）
+        newAttrs = /\bstyle="/i.test(newAttrs)
+            ? newAttrs.replace(/\bstyle="([^"]*)"/i, 'style="$1; table-layout: fixed"')
+            : newAttrs + ' style="table-layout: fixed"';
+        return `<table${newAttrs}>${colgroup}`;
+    });
+}
+
+/**
+ * :::hide ... ::: ブロックをソースから除去する（ネスト対応）
+ *
+ * 行単位でネスト深度を追跡するため、内部に他の ::: ブロックが
+ * あっても正しく除去される。
+ *
+ * @param {string} src
+ * @returns {string}
+ */
+function stripHideBlocks(src) {
+    const lines = src.split(/\r?\n/);
+    const out = [];
+    let depth = 0;
+    for (const line of lines) {
+        if (depth === 0) {
+            if (/^:::hide(?:\s|$)/.test(line)) {
+                depth = 1; // hide ブロック開始、この行は出力しない
+            } else {
+                out.push(line);
+            }
+        } else {
+            // hide ブロック内：すべて出力しない
+            if (/^:::\w/.test(line)) {
+                depth++; // 任意のネスト開きタグ
+            } else if (/^:::(?!\w)/.test(line)) {
+                depth--; // 閉じタグ
+            }
+        }
+    }
+    return out.join('\n');
 }
 
 /**
@@ -226,7 +272,7 @@ function injectColgroupToFirstTable(tableHtml, widths) {
  * @returns {string} HTML
  */
 export function transformDSL(markdown, parseFn, ctx = {}) {
-    const segments = splitSegments(markdown);
+    const segments = splitSegments(stripHideBlocks(markdown));
     return segments
         .map(seg => {
             if (seg.kind === 'md') return parseFn(seg.text);

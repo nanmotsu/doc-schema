@@ -182,6 +182,13 @@ th {
     white-space: nowrap;
 }
 
+/* colRatio / colWidths 指定時: table-layout: fixed に合わせてヘッダーも折り返し許可 */
+table.col-fixed th {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
 /* ============================================================
    表題ページ
    ============================================================ */

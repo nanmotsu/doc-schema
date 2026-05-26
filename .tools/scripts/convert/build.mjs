@@ -339,6 +339,8 @@ function buildSlugMap(markdown) {
  * - 既定: 見出しから自動生成
  * - meta.tocManual がある場合: 手入力目次を優先
  * - meta.toc === false の場合: 目次を出力しない
+ * - tocDepth: 目次に含める最大見出しレベル（1、3）
+ *   優先順位: フロントマター > page.json > 3（デフォルト）
  */
 function buildTOC(headings, meta, parseFn) {
     if (meta.toc === false) return "";
@@ -361,7 +363,12 @@ function buildTOC(headings, meta, parseFn) {
         ].join("\n");
     }
 
-    if (headings.length === 0) return "";
+    // tocDepth: フロントマター > page.json > 3
+    const rawDepth = meta.tocDepth ?? pageConfig.tocDepth ?? 3;
+    const tocDepth = Math.max(1, Math.min(3, parseInt(rawDepth) || 3));
+
+    const filteredHeadings = headings.filter(h => h.level <= tocDepth);
+    if (filteredHeadings.length === 0) return "";
 
     // styleConfig.heading と同じレベル定義で番号を JS 側で再現
     const hs = styleConfig.heading;
@@ -372,8 +379,8 @@ function buildTOC(headings, meta, parseFn) {
     const counters = {};
     orderedLevels.forEach(l => { counters[l] = 0; });
 
-    const minLevel = Math.min(...headings.map(h => h.level));
-    const items = headings.map(({ level, rawText, index }) => {
+    const minLevel = Math.min(...filteredHeadings.map(h => h.level));
+    const items = filteredHeadings.map(({ level, rawText, index }) => {
         // 番号生成（CSSカウンターと同じロジック）
         let prefix = "";
         if (hs.numbering && orderedLevels.includes(level)) {
