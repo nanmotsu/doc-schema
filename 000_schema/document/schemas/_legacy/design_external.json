@@ -1,0 +1,55 @@
+{
+    "key": "design_external",
+    "label": "Design External（外部設計）",
+    "prefix": "EXT-DESIGN",
+    "idExample": "EXT-DESIGN-auth",
+    "dirParts": [ "external", "3_designs" ],
+    "numbering": "name",
+    "defaultStatus": "DRAFT",
+    "statuses": [
+        { "code": "UNFINISHED", "label": "未整理" },
+        { "code": "DRAFT", "label": "作成中" },
+        { "code": "ACTIVE", "label": "採用" },
+        { "code": "NEED_UPDATE", "label": "ズレ発生" },
+        { "code": "DEPRECATED", "label": "廃止" }
+    ],
+    "schema": {
+        "required": [ "id", "status" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^EXT-DESIGN-.+$" },
+            "status": { "type": "string", "enum": [ "UNFINISHED", "DRAFT", "ACTIVE", "NEED_UPDATE", "DEPRECATED" ] },
+            "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "tags:",
+        "  - EXT_DESIGN",
+        "status: {{status}}",
+        "updated_at: {{date}}",
+        "---",
+        "",
+        "# {{id}}_{{title}}",
+        "",
+        "## 全体構成",
+        "- システム全体の構造（外から見える）",
+        "",
+        "## 実行構造",
+        "- バッチ実行 / API / UI など",
+        "",
+        "## データフロー",
+        "- 入力 → 処理 → 出力（外部視点）",
+        "",
+        "## インターフェース構成",
+        "- API一覧 / バッチ一覧 / ログ出力",
+        "",
+        "## 状態の流れ",
+        "- 状態遷移（外部仕様ベース）",
+        "",
+        "## 関連リンク",
+        "- ",
+        ""
+
+    ]
+}

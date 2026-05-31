@@ -5,6 +5,9 @@ cover: sample.png
 coverOrigin: internal
 assetsInternal: "999_利用ガイド/変換サンプル/assets"
 assetsExternal: "https://example.com/images"
+pdfOutputDir: .
+htmlOutputDir: .
+docxOutputDir: .
 revisionHistory:
   - version: "1.0"
     date: "2026-05-01"

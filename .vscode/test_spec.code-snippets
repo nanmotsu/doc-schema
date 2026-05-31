@@ -1,78 +1,35 @@
 {
-    "テスト仕様書ヘッダー": {
-        "prefix": "tspec",
-        "scope": "yaml",
-        "description": "TEST-*.yaml のファイルヘッダー（トップレベル構造）",
+    "test_case_markdown": {
+        "prefix": "test.case.md",
+        "description": "Markdown test case skeleton (front matter + steps)",
         "body": [
-            "id: TEST-${1:001}",
-            "title: ${2:テスト名}",
-            "version: \"1.0\"",
-            "date: \"${3:YYYY-MM-DD}\"",
-            "author: ${4:担当者名}",
+            "---",
+            "id: TEST-${1:2026-001}",
+            "title: ${2:テストケース名}",
+            "type: test_case",
+            "status: draft",
+            "created_at: ${3:2026-01-01}",
+            "updated_at: ${3:2026-01-01}",
+            "owner: ${4:担当者}",
+            "tags:",
+            "  -",
+            "releases:",
+            "  -",
+            "visibility: internal",
+            "---",
             "",
-            "preconditions:",
-            "  - ${5:前提条件}",
+            "# ${2:テストケース名}",
             "",
-            "cases:",
-            "  $0"
-        ]
-    },
-    "テストケース": {
-        "prefix": "tc",
-        "scope": "yaml",
-        "description": "テストケース 1 件（cases: の下に追加）",
-        "body": [
-            "- id: TC-${1:001}",
-            "  title: ${2:ケース名}",
-            "  tested_at: \"${3:YYYY-MM-DD}\"",
-            "  tested_by: ${4:担当者名}",
-            "  steps:",
-            "    $0",
-            "  result: pending"
-        ]
-    },
-    "テストステップ（手動）": {
-        "prefix": "step",
-        "scope": "yaml",
-        "description": "ステップ 1 件・手動エビデンス（steps: の下に追加）",
-        "body": [
-            "- id: ${1:TEST-001-TC001-S01}",
-            "  subtitle: ${2:試験項目}",
-            "  precondition: ${3:前提条件}",
-            "  action: ${4:操作内容}",
-            "  expected: ${5:期待結果}",
-            "  evidence:",
-            "    type: manual",
-            "    screenshot: ${6:ファイル名.png}"
-        ]
-    },
-    "テストステップ（自動テスト）": {
-        "prefix": "step-auto",
-        "scope": "yaml",
-        "description": "ステップ 1 件・自動テストエビデンス（steps: の下に追加）",
-        "body": [
-            "- id: ${1:TEST-001-TC001-S01}",
-            "  subtitle: ${2:試験項目}",
-            "  precondition: ${3:前提条件}",
-            "  action: ${4:操作内容}",
-            "  expected: ${5:期待結果}",
-            "  evidence:",
-            "    type: automated",
-            "    testFile: ${6:tests/Feature/HogeTest.php}",
-            "    screenshot: ${7:ファイル名.png}"
-        ]
-    },
-    "テストステップ（エビデンスなし）": {
-        "prefix": "step-none",
-        "scope": "yaml",
-        "description": "ステップ 1 件・エビデンスなし（steps: の下に追加）",
-        "body": [
-            "- id: ${1:TEST-001-TC001-S01}",
-            "  subtitle: ${2:試験項目}",
-            "  action: ${3:操作内容}",
-            "  expected: ${4:期待結果}",
-            "  evidence:",
-            "    type: none"
-        ]
+            "## 1. 目的",
+            "",
+            "## 2. 前提条件",
+            "",
+            "## 3. 手順",
+            "",
+            "| No | 操作 | 入力値 | 期待結果 |",
+            "|---:|---|---|---|",
+            "| 1 | ${5:操作} | ${6:入力} | ${7:期待結果} |"
+        ],
+        "scope": "markdown"
     }
 }

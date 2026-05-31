@@ -11,7 +11,7 @@ import { readdirSync, writeFileSync, existsSync, mkdirSync, appendFileSync, read
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline";
-import { getDocTypes, getProjects, findProject } from "../shared/definitions.mjs";
+import { getDocTypes, getProjects, findProject, toWikiLinkRef } from "../shared/definitions.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +37,23 @@ function getNextNumber(dir, regex) {
     return max + 1;
 }
 
+function getCurrentYear(dateStr) {
+    return (dateStr || today()).slice(0, 4);
+}
+
+function getNextYearNumber(dir, regex, year) {
+    if (!existsSync(dir)) return 1;
+    let max = 0;
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".md"))) {
+        const m = f.match(regex);
+        if (!m?.[1] || !m?.[2]) continue;
+        if (m[1] !== year) continue;
+        const n = parseInt(m[2], 10);
+        if (n > max) max = n;
+    }
+    return max + 1;
+}
+
 function getNextSourceNumber(dir, typeCode, dateStr) {
     const prefix = `SRC-${typeCode}-${dateStr}-`;
     if (!existsSync(dir)) return 1;
@@ -52,6 +69,11 @@ function resolveId(tmpl, { sourceType, slug, date }) {
     if (tmpl.numbering === "name") {
         return tmpl.idPattern(slug);
     }
+    if (tmpl.numbering === "year_seq") {
+        const year = getCurrentYear(date);
+        const seq = getNextYearNumber(tmpl.dir, tmpl.idRegex, year);
+        return tmpl.idPattern(seq, year);
+    }
     // seq
     return tmpl.idPattern(getNextNumber(tmpl.dir, tmpl.idRegex));
 }
@@ -60,6 +82,27 @@ function resolveId(tmpl, { sourceType, slug, date }) {
 function resolveStatus(tmpl) {
     if (!tmpl.statuses) return "";
     return tmpl.statuses.find(s => s.code === "UNFINISHED")?.code ?? tmpl.defaultStatus;
+}
+
+function parseCsv(input) {
+    return String(input || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+}
+
+function resolveAutoLinks(target, docs) {
+    const links = {};
+    for (const field of target.tmpl.linkFields ?? []) {
+        const matches = docs
+            .filter((doc) => doc.id !== target.id)
+            .map((doc) => doc.fileBaseName)
+            .filter((name) => field.pattern?.test(name.split("_")[0] ?? name));
+        if (matches.length > 0) {
+            links[field.key] = matches.map((name) => toWikiLinkRef(name)).filter(Boolean);
+        }
+    }
+    return links;
 }
 
 async function main() {
@@ -113,20 +156,32 @@ async function main() {
 
     // フローのステップを解決（定義にないキーはスキップ）
     const steps = flow.steps.map(key => typeMap[key]).filter(Boolean);
+    const issueStep = steps.find((dt) => dt.key === "issue");
+    let resolvedSteps = steps;
+
+    if (issueStep) {
+        const issueChoice = (await ask(rl, "\nissueを作成する? (Y/n): ")).trim().toLowerCase();
+        const includeIssue = issueChoice !== "n" && issueChoice !== "no";
+        if (!includeIssue) {
+            resolvedSteps = steps.filter((dt) => dt.key !== "issue");
+        }
+    }
 
     console.log(`\n--- ${flow.label} ---`);
     console.log("作成するドキュメント:");
-    steps.forEach(dt => console.log(`  • ${dt.label}`));
+    resolvedSteps.forEach(dt => console.log(`  • ${dt.label}`));
 
     // タイトル
     const title = (await ask(rl, "\n共通タイトル: ")).trim();
     if (!title) {
         console.log("タイトルが空です。"); rl.close(); process.exit(1);
     }
+    const owner = (await ask(rl, "共通owner (Enter=TBD): ")).trim() || "TBD";
+    const tags = parseCsv(await ask(rl, "共通tags (カンマ区切り, Enter=なし): "));
 
     // source が含まれる場合: sourceType を選択
     let sourceType = "IDEA";
-    const sourceStep = steps.find(dt => dt.numbering === "source");
+    const sourceStep = resolvedSteps.find(dt => dt.numbering === "source");
     if (sourceStep) {
         console.log("\nSource種別:");
         sourceStep.sourceTypes.forEach((t, i) => console.log(`  ${i + 1}. ${t.code}  ${t.label}`));
@@ -136,7 +191,7 @@ async function main() {
 
     // name ベース（spec/design）が含まれる場合: スラッグを入力
     let slug = "unnamed";
-    const nameStep = steps.find(dt => dt.numbering === "name");
+    const nameStep = resolvedSteps.find(dt => dt.numbering === "name");
     if (nameStep) {
         slug = (await ask(rl, "\nID用スラッグ (英数字・ハイフン, 例: photo-upload): ")).trim() || "unnamed";
     }
@@ -145,7 +200,7 @@ async function main() {
     console.log("\n--- 作成開始 ---");
     const created = [];
 
-    for (const tmpl of steps) {
+    for (const tmpl of resolvedSteps) {
         const id = resolveId(tmpl, { sourceType, slug, date });
         const fileBaseName = `${id}_${title}`;
         const status = resolveStatus(tmpl);
@@ -158,9 +213,13 @@ async function main() {
             continue;
         }
 
-        writeFileSync(filePath, tmpl.body(id, status, [], date, title), "utf-8");
-        console.log(`  作成: ${fileBaseName}.md`);
-        created.push({ tmpl, id, fileBaseName, status });
+        created.push({ tmpl, id, fileBaseName, status, filePath });
+    }
+
+    for (const doc of created) {
+        const links = resolveAutoLinks(doc, created);
+        writeFileSync(doc.filePath, doc.tmpl.body(doc.id, doc.status, [], date, title, { owner, tags, links }), "utf-8");
+        console.log(`  作成: ${doc.fileBaseName}.md`);
     }
 
     // 履歴記録
@@ -177,18 +236,6 @@ async function main() {
             file: `${fileBaseName}.md`,
         });
         appendFileSync(HISTORY_FILE, record + "\n", "utf-8");
-    }
-
-    // 関連リンクを各ファイルに追記
-    if (created.length > 1) {
-        for (const { tmpl, fileBaseName } of created) {
-            const filePath = join(tmpl.dir, `${fileBaseName}.md`);
-            const others = created
-                .filter(c => c.fileBaseName !== fileBaseName)
-                .map(c => `- [[${c.fileBaseName}]]`);
-            const section = `\n## 関連リンク\n${others.join("\n")}\n`;
-            appendFileSync(filePath, section, "utf-8");
-        }
     }
 
     console.log(`\n完了: ${created.length}件 作成しました。`);

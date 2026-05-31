@@ -1,32 +1,40 @@
-# external/5_test_specs/TEST-001_ログイン_正常系.yaml
-# テスト実行後に result を追記したもの（このシステムに保存する形式）
-
 id: TEST-001
 title: ログイン機能テスト仕様書（正常系）
-version: "1.0"
-date: "2026-05-19"
+version: '1.0'
+date: '2026-05-19'
 author: 担当者名
-
-preconditions:                  # このテスト仕様書固有の前提条件
+outputDir: ./evidence
+preconditions:
   - ログイン画面が表示されていること
   - テストユーザーが登録済みであること
-
-test_data:                      # 事前に用意しておくデータ
+test_data:
   - label: テストユーザー
     description: テストで使用するアカウント（事前にDBへ登録しておく）
-    columns: [メール, パスワード, ロール]
+    columns:
+      - ユーザーID
+      - メール
+      - パスワード
+      - ロール
     rows:
-      - ["test@example.com", "Password123!", "管理者"]
-      - ["user@example.com", "Password123!", "一般ユーザー"]
+      - - 1
+        - test@example.com
+        - Password123!
+        - 管理者
+      - - 2
+        - user@example.com
+        - Password123!
+        - 一般ユーザー
   - label: 施設マスタ
-    columns: [施設ID, 施設名]
+    columns:
+      - 施設ID
+      - 施設名
     rows:
-      - [1, "テスト施設A"]
-
+      - - 1
+        - テスト施設A
 cases:
   - id: TC-001
     title: 正常ログイン
-    tested_at: "2026-05-20"
+    tested_at: '2026-05-30'
     tested_by: 田中
     steps:
       - id: TEST-001-TC001-S01
@@ -35,31 +43,34 @@ cases:
         action: メールアドレスを入力する
         expected: 入力フィールドに値が反映される
         evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Feature/Auth/LoginTest.php
-          screenshot: TEST-001-TC001-S01.png
-
+          screenshot:
+            - TEST-001-TC001-S01_1780087323824_87753015.png
+          memo: あ
+        result_detail:
+          status: fail
+          remark: ''
       - id: TEST-001-TC001-S02
         subtitle: パスワード入力
         action: パスワードを入力する
         expected: マスク表示される
         evidence:
-          type: automated
-          screenshot: TEST-001-TC001-S02.png
-
+          memo: |-
+            パスワード機能はないため
+            エビデンスはなし
+        result_detail:
+          status: not_run
+          remark: ''
       - id: TEST-001-TC001-S03
         subtitle: ログイン実行
         action: ログインボタンをクリックする
         expected: ダッシュボードへ遷移する
-        evidence:
-          type: manual
-          screenshot: TEST-001-TC001-S03.png
-
-    result: pass
-
+        evidence: null
+        result_detail:
+          status: not_run
+          remark: ''
   - id: TC-002
     title: パスワード誤りでログイン失敗
-    tested_at: "2026-05-20"
+    tested_at: '2026-05-30'
     tested_by: 田中
     steps:
       - id: TEST-001-TC002-S01
@@ -67,12 +78,10 @@ cases:
         precondition: ログイン画面が表示されていること
         action: 誤ったパスワードを入力してログインする
         expected: エラーメッセージが表示される
-        evidence:
-          type: manual
-          screenshot: TEST-001-TC002-S01.png
-
-    result: pass
-
+        evidence: null
+        result_detail:
+          status: not_run
+          remark: ''
   - id: TC-003
     title: 未登録メールでログイン
     steps:
@@ -80,7 +89,8 @@ cases:
         subtitle: 未登録メールでのログイン試行
         action: 未登録のメールアドレスでログインする
         expected: 「メールアドレスが見つかりません」と表示される
-        evidence:
-          type: none
-
-    result: pending
+        evidence: null
+        result_detail:
+          status: not_run
+          remark: ''
+    tested_at: '2026-05-29'

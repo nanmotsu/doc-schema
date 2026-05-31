@@ -293,6 +293,13 @@ th {
     white-space: nowrap;
 }
 
+/* colRatio / colWidths 指定時: table-layout: fixed に合わせてヘッダーも折り返し許可 */
+table.col-fixed th {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
 /* ============================================================
    表題ページ
    ============================================================ */
@@ -545,7 +552,7 @@ th {
 
 <div class="table-wrapper">
 <p class="table-caption">機能一覧（長い表・表番号付き改ページ確認）</p>
-<table style="font-size:13px"><colgroup><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:25%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:16.666666666666664%"></colgroup>
+<table style="font-size:13px; table-layout: fixed" class="col-fixed"><colgroup><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:25%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:8.333333333333332%"><col style="width:16.666666666666664%"></colgroup>
 <thead>
 <tr>
 <th>No.</th>
@@ -896,7 +903,7 @@ th {
 
 <div class="table-wrapper">
 <p class="table-caption">担当者別タスク概要（colWidths指定例）</p>
-<table style="font-size:12px"><colgroup><col style="width:20%"><col style="width:50%"><col style="width:30%"></colgroup>
+<table style="font-size:12px; table-layout: fixed" class="col-fixed"><colgroup><col style="width:20%"><col style="width:50%"><col style="width:30%"></colgroup>
 <thead>
 <tr>
 <th>担当者</th>

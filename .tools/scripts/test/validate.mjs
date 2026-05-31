@@ -11,8 +11,8 @@
  *   TEST-*.yaml         → .tools/scripts/test/schemas/test_spec.json で検証
  *                         + カスタムチェック（IDの整合性・evidence ルール）
  */
-import { readFileSync, readdirSync, existsSync } from "fs";
-import { join, basename, dirname } from "path";
+import { readFileSync, readdirSync, existsSync, statSync } from "fs";
+import { join, basename, dirname, resolve, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 import Ajv from "ajv";
@@ -125,28 +125,41 @@ function checkStepIdConsistency(filepath, data) {
     return errors;
 }
 
-/**
- * evidence.type に応じた追加チェック:
- *   - automated / manual : screenshot が必要
- *   - none               : testFile / screenshot は不要（書いてもエラーにはしない）
- */
 function checkEvidenceRules(filepath, data) {
+    // 証跡項目に対する独自ルールは現在なし
+    return [];
+}
+
+/**
+ * outputDir の存在チェック:
+ * - 必須（schema）である前提で、実在するディレクトリかを検証する
+ * - 相対パスは YAML ファイル配置ディレクトリ基準で解決する
+ */
+function checkOutputDirExists(filepath, data) {
     const errors = [];
-    if (!data.cases) return errors;
+    const raw = String(data.outputDir ?? "").trim();
+    if (!raw) return errors;
 
-    for (const tc of data.cases) {
-        if (!Array.isArray(tc.steps)) continue;
-        for (const step of tc.steps) {
-            const ev = step.evidence;
-            if (!ev) continue;
+    const abs = isAbsolute(raw)
+        ? raw
+        : resolve(dirname(filepath), raw);
 
-            if ((ev.type === "automated" || ev.type === "manual") && !ev.screenshot) {
-                errors.push(err(filepath,
-                    `ステップ '${step.id ?? "?"}': evidence.type が '${ev.type}' の場合 screenshot が必要です`
-                ));
-            }
-        }
+    if (!existsSync(abs)) {
+        errors.push(err(filepath, `outputDir が存在しません: ${raw} (解決先: ${abs})`));
+        return errors;
     }
+
+    let isDir = false;
+    try {
+        isDir = statSync(abs).isDirectory();
+    } catch {
+        isDir = false;
+    }
+
+    if (!isDir) {
+        errors.push(err(filepath, `outputDir がディレクトリではありません: ${raw} (解決先: ${abs})`));
+    }
+
     return errors;
 }
 
@@ -169,6 +182,7 @@ function validateTestSpecFile(filepath) {
     // カスタムチェック（スキーマがOKでも実行する）
     errors.push(...checkStepIdConsistency(filepath, data));
     errors.push(...checkEvidenceRules(filepath, data));
+    errors.push(...checkOutputDirExists(filepath, data));
 
     return errors;
 }

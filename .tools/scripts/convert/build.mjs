@@ -5,7 +5,7 @@
  *   node build.mjs <input.md>              # HTML + PDF を生成
  *   node build.mjs <input.md> --html-only  # HTML のみ生成
  */
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
 import { join, dirname, basename, extname, resolve } from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 
@@ -427,8 +427,6 @@ if (!existsSync(inputPath)) {
 
 const srcDir = dirname(inputPath);
 const baseName = basename(inputPath, extname(inputPath));
-const htmlPath = join(srcDir, `${baseName}.html`);
-const pdfPath = join(srcDir, `${baseName}.pdf`);
 
 // ── CSS ────────────────────────────────────────────────────
 // スキーマから生成した変数・カウンター・DSLクラス CSS + 構造 CSS
@@ -521,9 +519,64 @@ function isParagraphIndentEnabled(meta, pageCfg) {
     return parseBoolLike(cfgRaw, false);
 }
 
+/**
+ * フロントマターから出力ディレクトリを解決する。
+ * 優先順位: 優先キー > 共通キー(outputDir) > 入力ファイルと同じディレクトリ。
+ */
+function resolveOutputDir(meta, srcDir, preferredKey) {
+    const preferred = meta?.[preferredKey];
+    const shared = meta?.outputDir;
+    const raw = preferred ?? shared;
+
+    if (raw === undefined || raw === null) return srcDir;
+
+    const text = String(raw).trim();
+    if (!text) return srcDir;
+
+    return resolve(srcDir, text);
+}
+
+function ensureExistingDirectory(pathValue, keyName) {
+    if (!existsSync(pathValue)) {
+        console.error(`出力ディレクトリが存在しません (${keyName}): ${pathValue}`);
+        process.exit(1);
+    }
+
+    let isDir = false;
+    try {
+        isDir = statSync(pathValue).isDirectory();
+    } catch {
+        isDir = false;
+    }
+
+    if (!isDir) {
+        console.error(`出力先がディレクトリではありません (${keyName}): ${pathValue}`);
+        process.exit(1);
+    }
+}
+
+function resolveOutputFileName(meta, key, fallback) {
+    const raw = meta?.[key];
+    if (raw === undefined || raw === null) return fallback;
+
+    const text = String(raw).trim();
+    return text || fallback;
+}
+
 // ── 変換 ───────────────────────────────────────────────────
 const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
+
+const htmlDir = resolveOutputDir(meta, srcDir, "htmlOutputDir");
+const pdfDir = resolveOutputDir(meta, srcDir, "pdfOutputDir");
+const htmlFileName = resolveOutputFileName(meta, "htmlFileName", `${baseName}.html`);
+const pdfFileName = resolveOutputFileName(meta, "pdfFileName", `${baseName}.pdf`);
+
+ensureExistingDirectory(htmlDir, "htmlOutputDir");
+ensureExistingDirectory(pdfDir, "pdfOutputDir");
+
+const htmlPath = join(htmlDir, htmlFileName);
+const pdfPath = join(pdfDir, pdfFileName);
 
 // アセットルート解決
 // assetsInternal: フロントマターのみ（プロジェクトルートからの相対パス）

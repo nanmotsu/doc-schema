@@ -1,27 +1,33 @@
-# external/5_test_specs/TEST-002_利用者管理_CRUD.yaml
-
 id: TEST-002
 title: 利用者管理 CRUD テスト仕様書
-version: "1.0"
-date: "2026-05-21"
+version: '1.0'
+date: '2026-05-21'
 author: 担当者名
-
+outputDir: ./evidence
 preconditions:
   - 管理者アカウントでログイン済みであること
   - 利用者管理画面が表示されていること
-
 test_data:
   - label: 登録テストデータ
     description: 新規登録に使用するデータ
-    columns: [氏名, 生年月日, 性別, 施設ID]
+    columns:
+      - 氏名
+      - 生年月日
+      - 性別
+      - 施設ID
     rows:
-      - ["テスト 太郎", "2000-04-01", "男", 1]
-      - ["テスト 花子", "1998-07-15", "女", 1]
-
+      - - テスト 太郎
+        - '2000-04-01'
+        - 男
+        - 1
+      - - テスト 花子
+        - '1998-07-15'
+        - 女
+        - 1
 cases:
   - id: TC-001
     title: 利用者の新規登録
-    tested_at: "2026-05-21"
+    tested_at: '2026-05-30'
     tested_by: 佐藤
     steps:
       - id: TEST-002-TC001-S01
@@ -30,31 +36,29 @@ cases:
         action: 「新規登録」ボタンをクリックする
         expected: 利用者登録フォームが表示される
         evidence:
-          type: manual
-          screenshot: TEST-002-TC001-S01.png
-
+          screenshot:
+            - TEST-002-TC001-S01_1780087640183_1f7e462a.png
+        result_detail:
+          status: not_run
+          remark: ''
       - id: TEST-002-TC001-S02
         subtitle: 必須項目を入力する
         action: 氏名・生年月日・性別・施設を入力する
         expected: 各フィールドに値が反映される
         evidence:
-          type: manual
-          screenshot: TEST-002-TC001-S02.png
-
+          screenshot:
+            - TEST-002-TC001-S02_1780087657489_eea5a0e3.png
+        result_detail:
+          status: not_run
+          remark: ''
       - id: TEST-002-TC001-S03
         subtitle: 登録を実行する
         action: 「登録」ボタンをクリックする
         expected: 利用者一覧に追加され、完了メッセージが表示される
-        evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Feature/User/UserCreateTest.php
-          screenshot: TEST-002-TC001-S03.png
-
-    result: pass
-
+        evidence: null
   - id: TC-002
     title: 利用者情報の編集
-    tested_at: "2026-05-21"
+    tested_at: '2026-05-21'
     tested_by: 佐藤
     steps:
       - id: TEST-002-TC002-S01
@@ -62,24 +66,15 @@ cases:
         precondition: 利用者一覧に対象が存在すること
         action: 対象行の「編集」ボタンをクリックする
         expected: 編集フォームに現在の値がプリセットされて表示される
-        evidence:
-          type: manual
-          screenshot: TEST-002-TC002-S01.png
-
+        evidence: null
       - id: TEST-002-TC002-S02
         subtitle: 値を変更して保存する
         action: 氏名を変更し「保存」ボタンをクリックする
         expected: 変更が一覧に反映され、完了メッセージが表示される
-        evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Feature/User/UserUpdateTest.php
-          screenshot: TEST-002-TC002-S02.png
-
-    result: pass
-
+        evidence: null
   - id: TC-003
     title: 利用者の削除
-    tested_at: "2026-05-21"
+    tested_at: '2026-05-21'
     tested_by: 佐藤
     steps:
       - id: TEST-002-TC003-S01
@@ -91,21 +86,12 @@ cases:
         expected: |
           確認ダイアログが表示される
           ダイアログのメッセージが「削除しますか？」であること
-        evidence:
-          type: manual
-          screenshot: TEST-002-TC003-S01.png
-
+        evidence: null
       - id: TEST-002-TC003-S02
         subtitle: 削除を確定する
         action: 確認ダイアログで「OK」をクリックする
         expected: 対象が一覧から消え、完了メッセージが表示される
-        evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Feature/User/UserDeleteTest.php
-          screenshot: TEST-002-TC003-S02.png
-
-    result: fail
-
+        evidence: null
   - id: TC-004
     title: 必須項目未入力での登録バリデーション
     steps:
@@ -114,9 +100,8 @@ cases:
         precondition: 利用者登録フォームが表示されていること
         action: 何も入力せず「登録」ボタンをクリックする
         expected: 各必須項目にバリデーションエラーメッセージが表示される
-        evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Feature/User/UserValidationTest.php
-          screenshot: TEST-002-TC004-S01.png
-
-    result: pending
+        evidence: null
+        result_detail:
+          status: not_run
+          remark: ''
+    tested_at: '2026-05-30'

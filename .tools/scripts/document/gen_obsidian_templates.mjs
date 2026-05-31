@@ -16,6 +16,7 @@ const __dirname = dirname(__filename);
 
 const SCHEMA_DIR = join(__dirname, "..", "..", "..", "000_schema", "document", "schemas");
 const OUTPUT_DIR = join(__dirname, "..", "..", "..", "000_schema", "document", "obsidian_template");
+const LEGACY_SCHEMA_KEYS = new Set(["source", "task_impl"]);
 
 // 出力ディレクトリがなければ作成
 if (!existsSync(OUTPUT_DIR)) {
@@ -29,6 +30,12 @@ let skippedCount = 0;
 
 for (const file of schemaFiles) {
     const schema = JSON.parse(readFileSync(join(SCHEMA_DIR, file), "utf-8"));
+
+    if (LEGACY_SCHEMA_KEYS.has(schema.key)) {
+        console.log(`  スキップ: ${file} (legacy schema)`);
+        skippedCount++;
+        continue;
+    }
 
     if (!Array.isArray(schema.body) || schema.body.length === 0) {
         console.log(`  スキップ: ${file} (body なし)`);

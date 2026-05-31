@@ -1,0 +1,54 @@
+{
+    "key": "ticket_level1",
+    "label": "Lv1 Ticket",
+    "prefix": "BUG",
+    "idExample": "BUG-2026-001",
+    "dirParts": [ "docs", "10_specs", "changes", "level1_tickets" ],
+    "numbering": "year_seq",
+    "defaultStatus": "closed",
+    "statuses": [
+        { "code": "draft", "label": "draft" },
+        { "code": "review", "label": "review" },
+        { "code": "approved", "label": "approved" },
+        { "code": "active", "label": "active" },
+        { "code": "deprecated", "label": "deprecated" },
+        { "code": "closed", "label": "closed" }
+    ],
+    "schema": {
+        "required": [ "id", "title", "type", "level", "status", "visibility" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^BUG-\\d{4}-\\d{3}$" },
+            "title": { "type": "string" },
+            "type": { "type": "string", "enum": [ "ticket" ] },
+            "level": { "type": "integer", "enum": [ 1 ] },
+            "status": { "type": "string", "enum": [ "draft", "review", "approved", "active", "deprecated", "closed" ] },
+            "tests": { "type": "array", "items": { "type": "string", "pattern": "^(\\[\\[[^\\]\\n]+\\]\\]|TEST-\\d{4}-\\d{3})$" } },
+            "visibility": { "type": "string", "enum": [ "internal", "customer", "partial", "confidential" ] }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "title: {{title}}",
+        "type: ticket",
+        "level: 1",
+        "status: {{status}}",
+        "tests:",
+        "  - ",
+        "visibility: internal",
+        "---",
+        "",
+        "# 軽微修正名",
+        "",
+        "## 1. 内容",
+        "",
+        "## 2. 原因",
+        "",
+        "## 3. 対応内容",
+        "",
+        "## 4. 確認結果",
+        "",
+        "## 5. 証跡",
+        ""
+    ]
+}

@@ -84,9 +84,9 @@
     },
     "table": {
         "prefix": "tbl",
-        "description": "表（キャプション付き）",
+        "description": "表（キャプション付き・fontSize/colRatio対応）",
         "body": [
-            ":::table",
+            ":::table ${6:fontSize=13px} ${7:colRatio=2,3}",
             "${1:表タイトル}",
             "",
             "| ${2:列1} | ${3:列2} |",

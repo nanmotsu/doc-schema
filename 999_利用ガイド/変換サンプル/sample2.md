@@ -4,6 +4,9 @@ subtitle: Mermaid複雑図・多行テーブル・改修検証用
 toc: true
 titlePage: false
 revisionHistoryPage: false
+pdfOutputDir: .
+htmlOutputDir: .
+docxOutputDir: .
 ---
 
 # Mermaid 検証

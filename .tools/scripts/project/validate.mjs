@@ -16,14 +16,22 @@ import { setupLogger } from "../shared/logger.mjs";
 
 const ajv = new Ajv({ allErrors: true });
 
+const PHASE_STRICT_LINK_RULES = {
+    issue: "decisions",
+    decision: "requirements",
+    requirement: "specifications",
+    specification: "tests",
+    ticket_level1: "tests",
+    change_level2: "specifications",
+    mod_project: "requirements",
+};
+
 function extractFrontmatter(filepath) {
     const text = readFileSync(filepath, "utf-8");
     const match = text.match(/^---\s*\n([\s\S]*?\n)---/);
     if (!match) return { data: null, line: 0 };
     try {
-        // Foam wiki links [[...]] → plain string for YAML parsing
-        const normalized = match[1].replace(/\[\[([^\]]+)\]\]/g, "$1");
-        const data = yaml.load(normalized, { schema: yaml.JSON_SCHEMA });
+        const data = yaml.load(match[1], { schema: yaml.JSON_SCHEMA });
         return { data: typeof data === "object" && data !== null ? data : null, line: 2 };
     } catch {
         return { data: null, line: 2 };
@@ -78,9 +86,27 @@ function validateFile(filepath) {
     return errors;
 }
 
+function hasFilledLinkList(value) {
+    if (!Array.isArray(value)) return false;
+    return value.some((v) => typeof v === "string" && v.trim().length > 0);
+}
+
+function validatePhaseStrict(filepath, schemaKey, frontmatter, line) {
+    const errors = [];
+    const requiredField = PHASE_STRICT_LINK_RULES[schemaKey];
+    if (!requiredField) return errors;
+
+    if (!hasFilledLinkList(frontmatter?.[requiredField])) {
+        errors.push(`${filepath}:${line}:1: error: strict-phase: '${requiredField}' に1件以上のリンクが必要です`);
+    }
+    return errors;
+}
+
 function main() {
     setupLogger("validate");
-    const args = process.argv.slice(2);
+    const rawArgs = process.argv.slice(2);
+    const strictPhase = rawArgs.includes("--strict-phase") || rawArgs.includes("--strict");
+    const args = rawArgs.filter(a => a !== "--strict-phase" && a !== "--strict");
     const allErrors = [];
 
     // .md で終わる引数はファイル指定として処理（プロジェクト指定とは別）
@@ -91,6 +117,13 @@ function main() {
         for (const arg of fileArgs) {
             if (existsSync(arg)) {
                 allErrors.push(...validateFile(arg));
+                if (strictPhase) {
+                    const key = findSchemaKey(basename(arg));
+                    const { data, line } = extractFrontmatter(arg);
+                    if (data !== null) {
+                        allErrors.push(...validatePhaseStrict(arg, key, data, line));
+                    }
+                }
             }
         }
     } else {
@@ -114,7 +147,15 @@ function main() {
             for (const dt of getDocTypes(project.dir)) {
                 if (!existsSync(dt.dir)) continue;
                 for (const file of readdirSync(dt.dir).filter((f) => f.endsWith(".md")).sort()) {
-                    allErrors.push(...validateFile(join(dt.dir, file)));
+                    const fullPath = join(dt.dir, file);
+                    allErrors.push(...validateFile(fullPath));
+                    if (strictPhase) {
+                        const key = findSchemaKey(file);
+                        const { data, line } = extractFrontmatter(fullPath);
+                        if (data !== null) {
+                            allErrors.push(...validatePhaseStrict(fullPath, key, data, line));
+                        }
+                    }
                 }
             }
         }
@@ -124,7 +165,11 @@ function main() {
         for (const err of allErrors) console.log(err);
         process.exit(1);
     } else {
-        console.log("すべてのフロントマターが正常です。");
+        if (strictPhase) {
+            console.log("すべてのフロントマターが正常です。（strict-phase 有効）");
+        } else {
+            console.log("すべてのフロントマターが正常です。");
+        }
     }
 }
 

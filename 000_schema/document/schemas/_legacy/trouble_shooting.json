@@ -1,0 +1,35 @@
+{
+    "key": "trouble_shooting",
+    "label": "TroubleShooting（トラブルシュート）",
+    "prefix": "DOC-TS",
+    "idExample": "DOC-TS-001",
+    "dirParts": [ "docs", "4_trouble_shooting" ],
+    "numbering": "seq",
+    "defaultStatus": null,
+    "statuses": null,
+    "schema": {
+        "required": [ "id" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^DOC-TS-\\d{3}$" },
+            "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "tags:",
+        "  - DOC_TS",
+        "updated_at: {{date}}",
+        "---",
+        "",
+        "# {{id}}_{{title}}",
+        "",
+        "## 現象",
+        "",
+        "## 原因",
+        "",
+        "",
+        "## 解決",
+        ""
+    ]
+}

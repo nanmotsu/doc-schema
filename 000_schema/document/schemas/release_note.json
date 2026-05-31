@@ -1,0 +1,56 @@
+{
+    "key": "release_note",
+    "label": "Release",
+    "prefix": "RELEASE",
+    "idExample": "RELEASE-2026-001",
+    "dirParts": [ "docs", "60_release" ],
+    "numbering": "year_seq",
+    "defaultStatus": "draft",
+    "statuses": [
+        { "code": "draft", "label": "draft" },
+        { "code": "review", "label": "review" },
+        { "code": "approved", "label": "approved" },
+        { "code": "active", "label": "active" },
+        { "code": "deprecated", "label": "deprecated" },
+        { "code": "closed", "label": "closed" }
+    ],
+    "schema": {
+        "required": [ "id", "title", "type", "status", "visibility" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^RELEASE-\\d{4}-\\d{3}$" },
+            "title": { "type": "string" },
+            "type": { "type": "string", "enum": [ "release" ] },
+            "status": { "type": "string", "enum": [ "draft", "review", "approved", "active", "deprecated", "closed" ] },
+            "created_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "owner": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "visibility": { "type": "string", "enum": [ "internal", "customer", "partial", "confidential" ] }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "title: {{title}}",
+        "type: release",
+        "status: {{status}}",
+        "created_at: {{date}}",
+        "updated_at: {{date}}",
+        "owner:",
+        "tags:",
+        "  - ",
+        "visibility: internal",
+        "---",
+        "",
+        "# リリース",
+        "",
+        "## 1. 概要",
+        "",
+        "## 2. 含まれる変更",
+        "",
+        "## 3. 既知の制約",
+        "",
+        "## 4. ロールバック方針",
+        ""
+    ]
+}

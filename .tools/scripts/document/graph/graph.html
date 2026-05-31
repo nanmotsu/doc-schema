@@ -980,32 +980,38 @@
     <script>
         // ===== Type color palette =====
         const TYPE_COLORS = {
-            source: "#e8a228",
-            decision: "#a78bfa",
-            task_impl: "#60a5fa",
-            task_test: "#34d399",
-            spec_internal: "#4ade80",
-            spec_external: "#86efac",
-            design_internal: "#2dd4bf",
-            design_external: "#a5f3fc",
+            meeting_note: "#7dd3fc",
             issue: "#f87171",
+            risk: "#fb7185",
+            decision: "#a78bfa",
             requirement: "#fbbf24",
-            trouble_shooting: "#9ca3af",
+            specification: "#4ade80",
+            test_case: "#34d399",
+            ticket_level1: "#60a5fa",
+            change_level2: "#38bdf8",
+            mod_project: "#818cf8",
+            runbook: "#22d3ee",
+            manual: "#2dd4bf",
+            customer_artifact: "#f59e0b",
+            release_note: "#9ca3af",
         };
 
         // 文書フローの横方向順 (0=左・最上流)
         const TYPE_TIER = {
-            source: 0,
+            meeting_note: 0,
             issue: 1,
+            risk: 1,
             decision: 2,
             requirement: 3,
-            spec_external: 4,
-            spec_internal: 4,
-            design_external: 5,
-            design_internal: 5,
-            task_impl: 6,
-            task_test: 6,
-            trouble_shooting: 7,
+            change_level2: 3,
+            mod_project: 3,
+            specification: 4,
+            ticket_level1: 5,
+            test_case: 5,
+            runbook: 6,
+            manual: 6,
+            customer_artifact: 6,
+            release_note: 7,
         };
         const MAX_TIER = 7;
 

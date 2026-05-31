@@ -7,7 +7,7 @@
  * マークダウンが正。DSLブロック・Mermaidダイアグラム（PNG埋め込み）対応。
  * コードブロックは等幅フォントで出力（シンタックスハイライトなし）。
  */
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
 import { join, dirname, basename, extname, resolve } from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { createRequire } from "module";
@@ -171,7 +171,46 @@ if (!existsSync(inputPath)) {
 
 const srcDir = dirname(inputPath);
 const baseName = basename(inputPath, extname(inputPath));
-const docxPath = join(srcDir, `${baseName}.docx`);
+
+function resolveOutputDir(meta, srcDir, preferredKey) {
+    const preferred = meta?.[preferredKey];
+    const shared = meta?.outputDir;
+    const raw = preferred ?? shared;
+
+    if (raw === undefined || raw === null) return srcDir;
+
+    const text = String(raw).trim();
+    if (!text) return srcDir;
+
+    return resolve(srcDir, text);
+}
+
+function ensureExistingDirectory(pathValue, keyName) {
+    if (!existsSync(pathValue)) {
+        console.error(`出力ディレクトリが存在しません (${keyName}): ${pathValue}`);
+        process.exit(1);
+    }
+
+    let isDir = false;
+    try {
+        isDir = statSync(pathValue).isDirectory();
+    } catch {
+        isDir = false;
+    }
+
+    if (!isDir) {
+        console.error(`出力先がディレクトリではありません (${keyName}): ${pathValue}`);
+        process.exit(1);
+    }
+}
+
+function resolveOutputFileName(meta, key, fallback) {
+    const raw = meta?.[key];
+    if (raw === undefined || raw === null) return fallback;
+
+    const text = String(raw).trim();
+    return text || fallback;
+}
 
 // ── Markdown パーサー ──────────────────────────────────────
 marked.setOptions({ gfm: true, breaks: false });
@@ -180,6 +219,11 @@ function parseMd(src) { return marked.parse(src); }
 // ── 変換 ───────────────────────────────────────────────────
 const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
+
+const docxDir = resolveOutputDir(meta, srcDir, "docxOutputDir");
+const docxFileName = resolveOutputFileName(meta, "docxFileName", `${baseName}.docx`);
+ensureExistingDirectory(docxDir, "docxOutputDir");
+const docxPath = join(docxDir, docxFileName);
 
 // アセットルート解決（フロントマターの assetsInternal を起点に相対パスを解決）
 const internalRaw = meta.assetsInternal ?? null;

@@ -1,0 +1,61 @@
+{
+    "key": "design_internal",
+    "label": "Design Internal（内部設計）",
+    "prefix": "INT-DESIGN",
+    "idExample": "INT-DESIGN-auth",
+    "dirParts": [ "internal", "6_designs" ],
+    "numbering": "name",
+    "defaultStatus": "DRAFT",
+    "statuses": [
+        { "code": "UNFINISHED", "label": "未整理" },
+        { "code": "DRAFT", "label": "作成中" },
+        { "code": "ACTIVE", "label": "採用" },
+        { "code": "NEED_UPDATE", "label": "ズレ発生" },
+        { "code": "DEPRECATED", "label": "廃止" }
+    ],
+    "schema": {
+        "required": [ "id", "status" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^INT-DESIGN-.+$" },
+            "status": { "type": "string", "enum": [ "UNFINISHED", "DRAFT", "ACTIVE", "NEED_UPDATE", "DEPRECATED" ] },
+            "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "tags:",
+        "  - INT_DESIGN",
+        "status: {{status}}",
+        "updated_at: {{date}}",
+        "---",
+        "",
+        "# {{id}}_{{title}}",
+        "",
+        "## アーキテクチャ",
+        "- コンポーネント構成",
+        "",
+        "## データ設計",
+        "- テーブル定義",
+        "- カラム",
+        "",
+        "## 処理構成",
+        "- バッチ処理詳細",
+        "- キュー",
+        "",
+        "## API / 外部連携",
+        "- エンドポイント",
+        "- 認証",
+        "",
+        "## 状態管理",
+        "- ステータス更新ロジック",
+        "",
+        "## エラー処理",
+        "- リトライ",
+        "- ログ",
+        "",
+        "## 関連リンク",
+        "- ",
+        ""
+    ]
+}

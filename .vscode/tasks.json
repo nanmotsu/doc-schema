@@ -55,6 +55,31 @@
             }
         },
         {
+            "label": "プロジェクト: フロントマター検証（strict-phase）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/project/validate.mjs",
+                "--strict-phase"
+            ],
+            "problemMatcher": {
+                "owner": "frontmatter",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
             "label": "プロジェクト: 新規作成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
@@ -256,6 +281,50 @@
                 "panel": "shared",
                 "focus": true
             }
+        },
+        {
+            "label": "テスト: グリッド（起動）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/test/grid/grid.mjs",
+                "${input:testGridDir}"
+            ],
+            "problemMatcher": [ ],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "silent",
+                "panel": "dedicated",
+                "focus": false
+            }
+        },
+        {
+            "label": "テスト: グリッド（停止）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Get-NetTCPConnection -LocalPort 3344 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Host 'stopped'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "テスト: グリッド（ブラウザで開く）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Start-Process 'http://localhost:3344'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "never",
+                "panel": "shared"
+            }
         }
     ],
     "inputs": [
@@ -264,6 +333,12 @@
             "type": "promptString",
             "description": "テスト仕様書ディレクトリのパス（5_test_specs 等）",
             "default": "${workspaceFolder}/001_blueberry_system/external/5_test_specs"
+        },
+        {
+            "id": "testGridDir",
+            "type": "promptString",
+            "description": "テストグリッド対象ディレクトリ（TEST-*.yaml があるフォルダ）",
+            "default": "${workspaceFolder}/999_利用ガイド/テスト結果サンプル"
         }
     ]
 }

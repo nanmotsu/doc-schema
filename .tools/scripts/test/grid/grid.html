@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>テスト仕様グリッド</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-tabs-wrap {
+            padding: 10px 12px 6px;
+            background: #f5f7fb;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            border-bottom: 1px solid #d9e0ea;
+        }
+
+        main {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid #d9e0ea;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel-body {
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #d9e0ea;
+            padding: 6px;
+            font-size: 12px;
+            vertical-align: top;
+            background: #fff;
+        }
+
+        th {
+            background: #f0f4ff;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .table-wrap {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            border: 1px solid #d9e0ea;
+            border-radius: 8px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            border: 1px solid #b8c4d6;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+
+        textarea {
+            width: 100%;
+            border: 1px solid #b8c4d6;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 12px;
+            background: #fff;
+            resize: vertical;
+            min-height: 52px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+
+        .status-cell {
+            text-align: center;
+        }
+
+        .status-select {
+            width: 100%;
+            border: 1px solid #b8c4d6;
+            border-radius: 6px;
+            padding: 5px;
+            font-size: 12px;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .status-select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+
+        .status-stack {
+            display: grid;
+            gap: 6px;
+        }
+
+        .status-meta {
+            display: grid;
+            gap: 4px;
+        }
+
+        .status-meta input[type="date"],
+        .status-meta input[type="text"] {
+            width: 100%;
+            border: 1px solid #b8c4d6;
+            border-radius: 6px;
+            padding: 5px;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        .status-meta input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+
+        .date-inline {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .today-btn {
+            background: #0ea5e9;
+            border: 1px solid #0284c7;
+            color: #fff;
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .today-btn:hover {
+            background: #0284c7;
+        }
+
+        .mono {
+            font-family: Consolas, "Courier New", monospace;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: nowrap;
+            min-width: 0;
+        }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #fff;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+
+        .ok {
+            color: #0f766e;
+        }
+
+        .err {
+            color: #b91c1c;
+        }
+
+        .selected-row td {
+            background: #eef8ff;
+        }
+
+        .title-separator td {
+            background: #dbeafe;
+            color: #1e3a8a;
+            font-weight: 700;
+            border-color: #bfdbfe;
+        }
+
+        .paste-target {
+            border: 1px dashed #93c5fd;
+            border-radius: 6px;
+            min-height: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            background: #f8fbff;
+        }
+
+        .paste-target-empty {
+            min-height: 24px;
+            padding: 2px 6px;
+        }
+
+        .paste-target-empty .image-placeholder {
+            padding: 0;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .shot-thumb {
+            width: 96px;
+            max-height: 72px;
+            object-fit: contain;
+            border: 1px solid #cfd8e3;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .thumb-empty {
+            color: #9ca3af;
+            font-size: 11px;
+        }
+
+        .image-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .image-card {
+            position: relative;
+            width: 108px;
+            min-height: 82px;
+            padding: 4px;
+            border: 1px solid #d8e2ee;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .image-card img {
+            display: block;
+            width: 100%;
+            height: 72px;
+            object-fit: contain;
+            cursor: zoom-in;
+        }
+
+        .image-remove {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            border: 1px solid #ffffff;
+            background: #dc2626;
+            color: #fff;
+            font-size: 14px;
+            line-height: 18px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+            z-index: 2;
+        }
+
+        .image-remove:hover {
+            background: #b91c1c;
+        }
+
+        .image-placeholder {
+            color: #9ca3af;
+            font-size: 11px;
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .image-upload-actions {
+            margin-top: 6px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .evidence-memo {
+            margin-bottom: 4px;
+            min-height: 24px;
+            resize: none;
+            overflow: hidden;
+        }
+
+        .multiline-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+
+        .upload-btn {
+            background: #0ea5e9;
+            border: 1px solid #0284c7;
+            color: #fff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .upload-btn:hover {
+            background: #0284c7;
+        }
+
+        .image-col {
+            width: 240px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .danger-btn {
+            background: #b91c1c;
+            border: 1px solid #991b1b;
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .danger-btn:hover {
+            background: #991b1b;
+        }
+
+        .tab-btn {
+            background: #e2e8f0;
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            padding: 5px 10px;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .tab-btn.active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #1d4ed8;
+        }
+
+        .preview-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            z-index: 100;
+        }
+
+        .preview-modal.show {
+            display: flex;
+        }
+
+        .preview-inner {
+            max-width: min(88vw, 1400px);
+            max-height: 84vh;
+            position: relative;
+        }
+
+        .preview-inner img {
+            max-width: 100%;
+            max-height: 84vh;
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+            background: #fff;
+        }
+
+        .preview-close {
+            position: absolute;
+            top: -14px;
+            right: -14px;
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            border: 1px solid #cbd5e1;
+            background: #334155;
+            color: #fff;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .preview-close:hover {
+            background: #0f172a;
+        }
+
+        .cleanup-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 120;
+        }
+
+        .cleanup-modal.show {
+            display: flex;
+        }
+
+        .cleanup-dialog {
+            width: min(980px, 96vw);
+            max-height: 88vh;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .cleanup-head {
+            padding: 10px 12px;
+            background: #fee2e2;
+            border-bottom: 1px solid #fecaca;
+            font-weight: 700;
+            color: #7f1d1d;
+            font-size: 14px;
+        }
+
+        .cleanup-body {
+            padding: 12px;
+            overflow: auto;
+            display: grid;
+            gap: 10px;
+        }
+
+        .cleanup-summary {
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .cleanup-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 10px;
+        }
+
+        .cleanup-item {
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            background: #f9fafb;
+            padding: 8px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .cleanup-item img {
+            width: 100%;
+            height: 132px;
+            object-fit: contain;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        .cleanup-item-name {
+            font-size: 11px;
+            color: #111827;
+            word-break: break-all;
+        }
+
+        .cleanup-item-path {
+            font-size: 10px;
+            color: #6b7280;
+            word-break: break-all;
+        }
+
+        .cleanup-foot {
+            padding: 10px 12px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .ghost-btn {
+            background: #e5e7eb;
+            border: 1px solid #d1d5db;
+            color: #111827;
+        }
+
+        .ghost-btn:hover {
+            background: #d1d5db;
+        }
+
+        .spec-extra {
+            margin-top: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #f5d0a9;
+            border-radius: 8px;
+            background: #fff7ed;
+            overflow: hidden;
+        }
+
+        .spec-extra summary {
+            cursor: pointer;
+            padding: 8px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #7c2d12;
+            background: linear-gradient(90deg, #ffedd5 0%, #fde68a 100%);
+            border-bottom: 1px solid #f5d0a9;
+        }
+
+        .spec-extra-content {
+            padding: 8px 10px;
+            display: grid;
+            gap: 10px;
+            font-size: 12px;
+            color: #111827;
+            background: #fffaf3;
+        }
+
+        .spec-extra-block h3 {
+            margin: 0 0 4px;
+            font-size: 12px;
+            color: #9a3412;
+        }
+
+        .spec-extra-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 2px;
+        }
+
+        .spec-extra-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+            background: #ffffff;
+        }
+
+        .spec-extra-table th,
+        .spec-extra-table td {
+            border: 1px solid #cbd5e1;
+            padding: 4px 6px;
+            font-size: 11px;
+            background: #fff;
+        }
+
+        .spec-extra-table th {
+            position: static;
+            background: #fef3c7;
+            color: #7c2d12;
+            font-weight: 700;
+        }
+
+        .spec-extra-table tbody tr:nth-child(odd) td {
+            background: #fffbeb;
+        }
+
+        .spec-extra-table tbody tr:hover td {
+            background: #fef3c7;
+        }
+
+        .spec-extra-dataset {
+            margin-top: 8px;
+            padding: 8px;
+            border: 1px solid #fdba74;
+            border-left: 4px solid #f97316;
+            border-radius: 6px;
+            background: #fff7ed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-tabs-wrap">
+        <div class="top-controls">
+            <div id="fileTabs" class="tabs"></div>
+            <button id="cleanupOrphanBtn" class="danger-btn" type="button">未参照画像削除</button>
+        </div>
+    </div>
+
+    <main>
+        <section class="panel">
+            <div class="panel-body">
+                <div id="specExtra"></div>
+                <div class="table-wrap">
+                    <table id="rowTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th style="width: 170px;">subtitle</th>
+                                <th style="width: 170px;">precondition</th>
+                                <th style="width: 210px;">action</th>
+                                <th style="width: 210px;">expected</th>
+                                <th class="image-col">エビデンス（Ctrl+V可）</th>
+                                <th style="width: 220px;">判定</th>
+                                <th style="width: 220px;">備考</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="previewModal" class="preview-modal" aria-hidden="true">
+        <div class="preview-inner">
+            <button id="previewClose" class="preview-close" type="button" aria-label="閉じる">×</button>
+            <img id="previewImage" src="" alt="preview">
+        </div>
+    </div>
+
+    <div id="cleanupModal" class="cleanup-modal" aria-hidden="true">
+        <div class="cleanup-dialog" role="dialog" aria-modal="true" aria-labelledby="cleanupTitle">
+            <div id="cleanupTitle" class="cleanup-head">未参照エビデンス削除の確認</div>
+            <div class="cleanup-body">
+                <div id="cleanupSummary" class="cleanup-summary">読み込み中...</div>
+                <div id="cleanupList" class="cleanup-list"></div>
+            </div>
+            <div class="cleanup-foot">
+                <button id="cleanupCancelBtn" class="ghost-btn" type="button">キャンセル</button>
+                <button id="cleanupExecuteBtn" class="danger-btn" type="button">削除実行</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            rows: [],
+            specs: [],
+            activeFile: "",
+            selectedRowKey: "",
+        };
+        const saveTimers = new Map();
+
+        const statusEl = document.getElementById("status");
+        const fileTabsEl = document.getElementById("fileTabs");
+        const rowBody = document.querySelector("#rowTable tbody");
+        const specExtraEl = document.getElementById("specExtra");
+        const previewModal = document.getElementById("previewModal");
+        const previewImage = document.getElementById("previewImage");
+        const previewClose = document.getElementById("previewClose");
+        const cleanupModal = document.getElementById("cleanupModal");
+        const cleanupSummary = document.getElementById("cleanupSummary");
+        const cleanupList = document.getElementById("cleanupList");
+        const cleanupCancelBtn = document.getElementById("cleanupCancelBtn");
+        const cleanupExecuteBtn = document.getElementById("cleanupExecuteBtn");
+        let cleanupCandidates = [];
+
+        function setStatus(text, cls) {
+            if (!statusEl) return;
+            statusEl.textContent = text || "";
+            statusEl.className = cls || "muted";
+        }
+
+        function escapeHtml(text) {
+            return String(text ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function renderMultilineText(text) {
+            return `<div class="multiline-text">${escapeHtml(text)}</div>`;
+        }
+
+        async function api(path, options = {}) {
+            const res = await fetch(path, {
+                headers: { "Content-Type": "application/json" },
+                ...options,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+            return data;
+        }
+
+        function blobToDataUrl(blob) {
+            return new Promise((resolveData, rejectData) => {
+                const reader = new FileReader();
+                reader.onload = () => resolveData(String(reader.result || ""));
+                reader.onerror = () => rejectData(new Error("画像の読み込みに失敗しました"));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function openPreview(src) {
+            if (!src) return;
+            previewImage.src = src;
+            previewModal.classList.add("show");
+            previewModal.setAttribute("aria-hidden", "false");
+        }
+
+        function closePreview() {
+            previewModal.classList.remove("show");
+            previewModal.setAttribute("aria-hidden", "true");
+            previewImage.src = "";
+        }
+
+        function openCleanupModal() {
+            cleanupModal.classList.add("show");
+            cleanupModal.setAttribute("aria-hidden", "false");
+        }
+
+        function closeCleanupModal() {
+            cleanupModal.classList.remove("show");
+            cleanupModal.setAttribute("aria-hidden", "true");
+        }
+
+        function renderCleanupCandidates(items) {
+            cleanupList.innerHTML = "";
+            cleanupCandidates = Array.isArray(items) ? items : [];
+
+            if (cleanupCandidates.length === 0) {
+                cleanupSummary.textContent = "削除対象の未参照エビデンスはありません。";
+                cleanupExecuteBtn.disabled = true;
+                return;
+            }
+
+            cleanupSummary.textContent = `削除対象: ${cleanupCandidates.length} 件（内容を確認して実行してください）`;
+            cleanupExecuteBtn.disabled = false;
+
+            cleanupCandidates.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "cleanup-item";
+                card.innerHTML = `
+                    ${item.previewUrl ? `<img src="${escapeHtml(item.previewUrl)}" alt="thumb">` : '<div class="image-placeholder">サムネなし</div>'}
+                    <div class="cleanup-item-name">${escapeHtml(item.name || "")}</div>
+                    <div class="cleanup-item-path">${escapeHtml(item.path || "")}</div>
+                `;
+                cleanupList.appendChild(card);
+            });
+        }
+
+        function getRowKey(row) {
+            return `${row.file}::${row.stepId}`;
+        }
+
+        function getVisibleRows() {
+            if (!state.activeFile) return state.rows;
+            return state.rows.filter(row => row.file === state.activeFile);
+        }
+
+        function renderTabs() {
+            fileTabsEl.innerHTML = "";
+            const files = state.specs.map(spec => spec.file);
+            if (files.length === 0) return;
+
+            if (!state.activeFile || !files.includes(state.activeFile)) {
+                state.activeFile = files[0];
+            }
+
+            files.forEach(file => {
+                const rowCount = state.rows.filter(row => row.file === file).length;
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `tab-btn${file === state.activeFile ? " active" : ""}`;
+                btn.textContent = `${file} (${rowCount})`;
+                btn.addEventListener("click", () => {
+                    state.activeFile = file;
+                    state.selectedRowKey = "";
+                    renderTabs();
+                    renderSpecExtra();
+                    renderRowTable();
+                });
+                fileTabsEl.appendChild(btn);
+            });
+        }
+
+        function renderSpecExtra() {
+            specExtraEl.innerHTML = "";
+            const spec = state.specs.find(v => v.file === state.activeFile);
+            if (!spec) return;
+
+            const preconditions = Array.isArray(spec.preconditions) ? spec.preconditions : [];
+            const testData = Array.isArray(spec.testData) ? spec.testData : [];
+
+            const hasPreconditions = preconditions.length > 0;
+            const hasTestData = testData.length > 0;
+            if (!hasPreconditions && !hasTestData) return;
+
+            const details = document.createElement("details");
+            details.className = "spec-extra";
+            details.innerHTML = `<summary>前提条件・事前データ（必要時のみ展開）</summary>`;
+
+            const content = document.createElement("div");
+            content.className = "spec-extra-content";
+
+            if (hasPreconditions) {
+                const block = document.createElement("section");
+                block.className = "spec-extra-block";
+                block.innerHTML = `
+                    <h3>前提条件</h3>
+                    <ul class="spec-extra-list">
+                        ${preconditions.map(v => `<li>${escapeHtml(v)}</li>`).join("")}
+                    </ul>
+                `;
+                content.appendChild(block);
+            }
+
+            if (hasTestData) {
+                const block = document.createElement("section");
+                block.className = "spec-extra-block";
+                const tablesHtml = testData.map(td => {
+                    const label = escapeHtml(td.label || "(名称なし)");
+                    const desc = td.description ? ` <span class="muted">(${escapeHtml(td.description)})</span>` : "";
+                    const columns = Array.isArray(td.columns) ? td.columns : [];
+                    const rows = Array.isArray(td.rows) ? td.rows : [];
+                    const head = columns.length > 0
+                        ? `<tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr>`
+                        : "";
+                    const body = rows.length > 0
+                        ? rows.map(r => {
+                            const cells = Array.isArray(r) ? r : [r];
+                            return `<tr>${cells.map(c => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`;
+                        }).join("")
+                        : `<tr><td class="muted">データなし</td></tr>`;
+                    return `
+                        <div class="spec-extra-dataset">
+                            <div style="margin-bottom:4px;"><strong>${label}</strong>${desc}</div>
+                            <table class="spec-extra-table">
+                                <thead>${head}</thead>
+                                <tbody>${body}</tbody>
+                            </table>
+                        </div>
+                    `;
+                }).join("");
+
+                block.innerHTML = `<h3>事前データ</h3>${tablesHtml}`;
+                content.appendChild(block);
+            }
+
+            details.appendChild(content);
+            specExtraEl.appendChild(details);
+        }
+
+        function renderRowTable() {
+            rowBody.innerHTML = "";
+            const visibleRows = getVisibleRows();
+            let lastTitle = null;
+
+            visibleRows.forEach((row, index) => {
+                const rowKey = getRowKey(row);
+
+                const caseId = String(row.caseId || "").trim();
+                const caseTitleText = String(row.caseTitle || row.title || "").trim();
+                const currentTitle = [caseId, caseTitleText].filter(Boolean).join(" ").trim();
+                if (currentTitle && currentTitle !== lastTitle) {
+                    const titleTr = document.createElement("tr");
+                    titleTr.className = "title-separator";
+                    titleTr.innerHTML = `<td colspan="8">${escapeHtml(currentTitle)}</td>`;
+                    rowBody.appendChild(titleTr);
+                    lastTitle = currentTitle;
+                }
+
+                const tr = document.createElement("tr");
+                if (rowKey === state.selectedRowKey) tr.classList.add("selected-row");
+                const hasScreenshots = !!(row.screenshots && row.screenshots.length > 0);
+                const screenshotHtml = hasScreenshots
+                    ? `<div class="image-stack">${row.screenshots.map((shot) => `
+                                                <div class="image-card">
+                                                        <button type="button" class="image-remove" data-action="remove-image" data-file="${escapeHtml(row.file)}" data-step-id="${escapeHtml(row.stepId)}" data-image-name="${escapeHtml(shot.name)}" aria-label="削除">×</button>
+                                                        ${shot.previewUrl ? `<img src="${escapeHtml(shot.previewUrl)}" alt="${escapeHtml(shot.name)}" data-action="open-preview">` : '<div class="image-placeholder">読み込み不可</div>'}
+                                                </div>
+                                        `).join("")}</div>`
+                    : '<div class="image-placeholder">Ctrl+V</div>';
+                const pasteTargetClass = hasScreenshots ? "paste-target" : "paste-target paste-target-empty";
+                tr.innerHTML = `
+          <td>${index + 1}</td>
+                    <td>${escapeHtml(row.subtitle)}</td>
+                      <td>${renderMultilineText(row.precondition)}</td>
+                      <td>${renderMultilineText(row.action)}</td>
+                      <td>${renderMultilineText(row.expected)}</td>
+              <td><textarea
+                            class="evidence-memo"
+                            rows="1"
+                            data-action="edit-evidence-memo"
+                            data-file="${escapeHtml(row.file)}"
+                            data-step-id="${escapeHtml(row.stepId)}"
+                            placeholder="エビデンスメモ（改行可）"
+                        >${escapeHtml(row.evidenceMemo || "")}</textarea>
+                    <div class="${pasteTargetClass}">${screenshotHtml}</div>
+                        <div class="image-upload-actions">
+                            <button
+                                type="button"
+                                class="upload-btn"
+                                data-action="pick-image"
+                                data-file="${escapeHtml(row.file)}"
+                                data-step-id="${escapeHtml(row.stepId)}">ファイル選択</button>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                data-action="file-image"
+                                data-file="${escapeHtml(row.file)}"
+                                data-step-id="${escapeHtml(row.stepId)}"
+                                style="display:none;">
+                        </div>
+                    </td>
+                    <td class="status-cell">
+                        <div class="status-stack">
+                            <select
+                                class="status-select"
+                                data-action="edit-status"
+                                data-file="${escapeHtml(row.file)}"
+                                data-step-id="${escapeHtml(row.stepId)}"
+                            >
+                                <option value="pass" ${row.status === "pass" ? "selected" : ""}>合格</option>
+                                <option value="fail" ${row.status === "fail" ? "selected" : ""}>不合格</option>
+                                <option value="pending" ${row.status === "pending" ? "selected" : ""}>保留</option>
+                                <option value="not_run" ${row.status === "not_run" ? "selected" : ""}>未実施</option>
+                            </select>
+                            <div class="status-meta">
+                                <div class="date-inline">
+                                    <input
+                                        type="date"
+                                        data-action="edit-tested-at"
+                                        data-file="${escapeHtml(row.file)}"
+                                        data-step-id="${escapeHtml(row.stepId)}"
+                                        value="${escapeHtml(row.testedAt || "")}">
+                                    <button
+                                        type="button"
+                                        class="today-btn"
+                                        data-action="set-today"
+                                        data-file="${escapeHtml(row.file)}"
+                                        data-step-id="${escapeHtml(row.stepId)}">今日</button>
+                                </div>
+                                <input
+                                    type="text"
+                                    data-action="edit-tested-by"
+                                    data-file="${escapeHtml(row.file)}"
+                                    data-step-id="${escapeHtml(row.stepId)}"
+                                    placeholder="実施者"
+                                    value="${escapeHtml(row.testedBy || "")}">
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <textarea
+                            data-action="edit-remark"
+                            data-file="${escapeHtml(row.file)}"
+                            data-step-id="${escapeHtml(row.stepId)}"
+                            placeholder="備考を入力"
+                        >${escapeHtml(row.remark || "")}</textarea>
+                    </td>
+        `;
+                tr.addEventListener("click", () => {
+                    state.selectedRowKey = rowKey;
+                    renderRowTable();
+                });
+                rowBody.appendChild(tr);
+            });
+
+            rowBody.querySelectorAll("[data-action='remove-image']").forEach(btn => {
+                btn.addEventListener("click", async (ev) => {
+                    ev.stopPropagation();
+                    try {
+                        setStatus("画像を削除中...", "muted");
+                        await api("/api/delete-image", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                file: btn.dataset.file,
+                                stepId: btn.dataset.stepId,
+                                imageName: btn.dataset.imageName,
+                            }),
+                        });
+                        setStatus("画像参照を解除しました（実ファイルは保持）", "ok");
+                        await loadAll();
+                    } catch (e) {
+                        setStatus(e.message, "err");
+                    }
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='open-preview']").forEach(img => {
+                img.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    openPreview(img.getAttribute("src") || "");
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='pick-image']").forEach(btn => {
+                btn.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    const file = btn.dataset.file;
+                    const stepId = btn.dataset.stepId;
+                    const input = rowBody.querySelector(`[data-action='file-image'][data-file='${CSS.escape(file)}'][data-step-id='${CSS.escape(stepId)}']`);
+                    if (input) input.click();
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='file-image']").forEach(input => {
+                input.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                });
+                input.addEventListener("change", async (ev) => {
+                    ev.stopPropagation();
+                    const files = Array.from(input.files || []).filter(f => f.type.startsWith("image/"));
+                    if (files.length === 0) return;
+                    const file = input.dataset.file;
+                    const stepId = input.dataset.stepId;
+                    await uploadImageFiles(file, stepId, files);
+                    input.value = "";
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='edit-status']").forEach(select => {
+                select.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                });
+                select.addEventListener("change", async (ev) => {
+                    ev.stopPropagation();
+                    const file = select.dataset.file;
+                    const stepId = select.dataset.stepId;
+                    await saveStepMetaFromRow(file, stepId, false);
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='edit-remark']").forEach(textarea => {
+                textarea.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                });
+                textarea.addEventListener("input", (ev) => {
+                    ev.stopPropagation();
+                    const file = textarea.dataset.file;
+                    const stepId = textarea.dataset.stepId;
+                    const key = `${file}::${stepId}`;
+                    queueSaveStepMeta(file, stepId, key);
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='edit-evidence-memo']").forEach(textarea => {
+                autoGrowMemoTextarea(textarea);
+                textarea.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                });
+                textarea.addEventListener("input", (ev) => {
+                    ev.stopPropagation();
+                    autoGrowMemoTextarea(textarea);
+                    const file = textarea.dataset.file;
+                    const stepId = textarea.dataset.stepId;
+                    const key = `memo::${file}::${stepId}`;
+                    queueSaveEvidenceMemo(file, stepId, key);
+                });
+                textarea.addEventListener("change", async (ev) => {
+                    ev.stopPropagation();
+                    const file = textarea.dataset.file;
+                    const stepId = textarea.dataset.stepId;
+                    await saveEvidenceMemoFromRow(file, stepId, false);
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='edit-tested-at'], [data-action='edit-tested-by']").forEach(input => {
+                input.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                });
+                input.addEventListener("input", (ev) => {
+                    ev.stopPropagation();
+                    const file = input.dataset.file;
+                    const stepId = input.dataset.stepId;
+                    const key = `${file}::${stepId}`;
+                    queueSaveStepMeta(file, stepId, key);
+                });
+                input.addEventListener("change", async (ev) => {
+                    ev.stopPropagation();
+                    const file = input.dataset.file;
+                    const stepId = input.dataset.stepId;
+                    await saveStepMetaFromRow(file, stepId, false);
+                });
+            });
+
+            rowBody.querySelectorAll("[data-action='set-today']").forEach(btn => {
+                btn.addEventListener("click", async (ev) => {
+                    ev.stopPropagation();
+                    const file = btn.dataset.file;
+                    const stepId = btn.dataset.stepId;
+                    const selector = `[data-action='edit-tested-at'][data-file='${CSS.escape(file)}'][data-step-id='${CSS.escape(stepId)}']`;
+                    const testedAtInput = rowBody.querySelector(selector);
+                    if (testedAtInput) {
+                        testedAtInput.value = getTodayDateValue();
+                    }
+                    await saveStepMetaFromRow(file, stepId, false);
+                });
+            });
+        }
+
+        function getTodayDateValue() {
+            const now = new Date();
+            const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 10);
+        }
+
+        function getRowInputs(file, stepId) {
+            const selector = `[data-file='${CSS.escape(file)}'][data-step-id='${CSS.escape(stepId)}']`;
+            const statusSelect = rowBody.querySelector(`[data-action='edit-status']${selector}`);
+            const remarkInput = rowBody.querySelector(`[data-action='edit-remark']${selector}`);
+            const testedAtInput = rowBody.querySelector(`[data-action='edit-tested-at']${selector}`);
+            const testedByInput = rowBody.querySelector(`[data-action='edit-tested-by']${selector}`);
+            return {
+                status: statusSelect ? String(statusSelect.value || "not_run") : "not_run",
+                remark: remarkInput ? String(remarkInput.value || "") : "",
+                testedAt: testedAtInput ? String(testedAtInput.value || "") : "",
+                testedBy: testedByInput ? String(testedByInput.value || "") : "",
+            };
+        }
+
+        function getEvidenceMemoInput(file, stepId) {
+            const selector = `[data-action='edit-evidence-memo'][data-file='${CSS.escape(file)}'][data-step-id='${CSS.escape(stepId)}']`;
+            const memoInput = rowBody.querySelector(selector);
+            return memoInput ? String(memoInput.value || "") : "";
+        }
+
+        function queueSaveStepMeta(file, stepId, key) {
+            if (saveTimers.has(key)) {
+                clearTimeout(saveTimers.get(key));
+            }
+            saveTimers.set(key, setTimeout(() => {
+                saveStepMetaFromRow(file, stepId, true);
+                saveTimers.delete(key);
+            }, 300));
+        }
+
+        function autoGrowMemoTextarea(textarea) {
+            if (!textarea) return;
+            textarea.style.height = "auto";
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 24)}px`;
+        }
+
+        function queueSaveEvidenceMemo(file, stepId, key) {
+            if (saveTimers.has(key)) {
+                clearTimeout(saveTimers.get(key));
+            }
+            saveTimers.set(key, setTimeout(() => {
+                saveEvidenceMemoFromRow(file, stepId, true);
+                saveTimers.delete(key);
+            }, 300));
+        }
+
+        async function saveStepMetaFromRow(file, stepId, silent) {
+            const values = getRowInputs(file, stepId);
+            await saveStepMeta(file, stepId, values.status, values.remark, values.testedAt, values.testedBy, silent);
+        }
+
+        async function saveEvidenceMemoFromRow(file, stepId, silent) {
+            const memo = getEvidenceMemoInput(file, stepId);
+            await saveEvidenceMemo(file, stepId, memo, silent);
+        }
+
+        async function saveStepMeta(file, stepId, status, remark, testedAt, testedBy, silent) {
+            try {
+                if (!silent) setStatus("判定/備考を保存中...", "muted");
+                await api("/api/step-meta", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        file,
+                        stepId,
+                        status,
+                        remark,
+                        testedAt,
+                        testedBy,
+                    }),
+                });
+
+                const row = state.rows.find(r => r.file === file && r.stepId === stepId);
+                if (row) {
+                    row.status = status;
+                    row.remark = remark;
+                    row.testedAt = testedAt;
+                    row.testedBy = testedBy;
+                }
+
+                setStatus("判定/備考を保存しました", "ok");
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        }
+
+        async function saveEvidenceMemo(file, stepId, memo, silent) {
+            try {
+                if (!silent) setStatus("エビデンスメモを保存中...", "muted");
+                await api("/api/evidence-memo", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        file,
+                        stepId,
+                        memo,
+                    }),
+                });
+
+                const row = state.rows.find(r => r.file === file && r.stepId === stepId);
+                if (row) {
+                    row.evidenceMemo = memo;
+                }
+
+                setStatus("エビデンスメモを保存しました", "ok");
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        }
+
+        async function savePastedImage(blob) {
+            const row = state.rows.find(r => getRowKey(r) === state.selectedRowKey);
+            if (!row) return;
+
+            try {
+                setStatus("画像を保存中...", "muted");
+                const imageDataUrl = await blobToDataUrl(blob);
+                await api("/api/paste-image", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        file: row.file,
+                        stepId: row.stepId,
+                        imageDataUrl,
+                    }),
+                });
+                setStatus("画像を保存して反映しました", "ok");
+                await loadAll();
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        }
+
+        async function uploadImageFiles(file, stepId, files) {
+            try {
+                setStatus("画像を保存中...", "muted");
+                for (const fileBlob of files) {
+                    const imageDataUrl = await blobToDataUrl(fileBlob);
+                    await api("/api/paste-image", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            file,
+                            stepId,
+                            imageDataUrl,
+                        }),
+                    });
+                }
+                setStatus("画像を保存して反映しました", "ok");
+                await loadAll();
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        }
+
+        async function loadAll() {
+            const data = await api("/api/data");
+            state.rows = data.rows || [];
+            state.specs = data.specs || [];
+
+            const visibleRows = getVisibleRows();
+            const yamlCount = state.specs.length;
+            const activeLabel = state.activeFile || "-";
+
+            if (!state.rows.some(row => getRowKey(row) === state.selectedRowKey)) {
+                state.selectedRowKey = "";
+            }
+
+            renderTabs();
+            renderSpecExtra();
+            renderRowTable();
+        }
+
+        document.addEventListener("paste", async (ev) => {
+            if (!state.selectedRowKey) return;
+            const items = Array.from(ev.clipboardData?.items || []);
+            const imageItem = items.find(i => i.kind === "file" && i.type.startsWith("image/"));
+            if (!imageItem) return;
+
+            ev.preventDefault();
+            const blob = imageItem.getAsFile();
+            if (!blob) return;
+            await savePastedImage(blob);
+        });
+
+        document.getElementById("cleanupOrphanBtn").addEventListener("click", async () => {
+            try {
+                setStatus("未参照エビデンス候補を確認中...", "muted");
+                const preview = await api("/api/cleanup-unreferenced-preview", { method: "GET" });
+                renderCleanupCandidates(preview.candidates || []);
+                openCleanupModal();
+                setStatus("削除候補を表示しました", "ok");
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        });
+
+        cleanupCancelBtn.addEventListener("click", closeCleanupModal);
+        cleanupModal.addEventListener("click", (ev) => {
+            if (ev.target === cleanupModal) closeCleanupModal();
+        });
+        cleanupExecuteBtn.addEventListener("click", async () => {
+            try {
+                setStatus("未参照エビデンスを削除中...", "muted");
+                const result = await api("/api/cleanup-unreferenced", { method: "POST" });
+                setStatus(`未参照エビデンスを ${result.deletedCount ?? 0} 件削除しました`, "ok");
+                closeCleanupModal();
+                await loadAll();
+            } catch (e) {
+                setStatus(e.message, "err");
+            }
+        });
+
+        previewClose.addEventListener("click", closePreview);
+        previewModal.addEventListener("click", (ev) => {
+            if (ev.target === previewModal) closePreview();
+        });
+        document.addEventListener("keydown", (ev) => {
+            if (ev.key === "Escape") closePreview();
+        });
+
+        loadAll().catch(e => {
+            setStatus(e.message, "err");
+        });
+    </script>
+</body>
+
+</html>

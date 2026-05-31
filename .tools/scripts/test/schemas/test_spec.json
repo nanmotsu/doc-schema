@@ -3,7 +3,7 @@
     "title": "テスト仕様書YAMLスキーマ",
     "description": "TEST-XXX_*.yaml のスキーマ定義",
     "type": "object",
-    "required": ["id", "title", "version", "date", "author", "cases"],
+    "required": [ "id", "title", "version", "date", "author", "outputDir", "cases" ],
     "additionalProperties": false,
     "properties": {
         "id": {
@@ -11,7 +11,7 @@
             "description": "TEST-001 形式。全体で単一連番",
             "pattern": "^TEST-\\d{3}$"
         },
-        "title":   { "type": "string" },
+        "title": { "type": "string" },
         "version": { "type": "string" },
         "date": {
             "type": "string",
@@ -19,6 +19,11 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
         },
         "author": { "type": "string" },
+        "outputDir": {
+            "type": "string",
+            "minLength": 1,
+            "description": "証跡ファイルの出力先ディレクトリ（相対/絶対どちらも可）"
+        },
         "preconditions": {
             "type": "array",
             "description": "このテスト固有の前提条件リスト。省略可",
@@ -39,23 +44,23 @@
             "description": "事前データ定義。省略可",
             "items": {
                 "type": "object",
-                "required": ["label", "columns", "rows"],
+                "required": [ "label", "columns", "rows" ],
                 "additionalProperties": false,
                 "properties": {
-                    "label":       { "type": "string" },
+                    "label": { "type": "string" },
                     "description": { "type": "string" },
-                    "columns":     { "type": "array", "minItems": 1, "items": { "type": "string" } },
-                    "rows":        { "type": "array", "items": { "type": "array" } }
+                    "columns": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+                    "rows": { "type": "array", "items": { "type": "array" } }
                 }
             }
         },
         "case": {
             "type": "object",
-            "required": ["id", "title", "steps", "result"],
+            "required": [ "id", "title", "steps" ],
             "additionalProperties": false,
             "properties": {
-                "id":        { "type": "string", "pattern": "^TC-\\d{3}$" },
-                "title":     { "type": "string" },
+                "id": { "type": "string", "pattern": "^TC-\\d{3}$" },
+                "title": { "type": "string" },
                 "tested_at": { "type": "string", "description": "実施日 YYYY-MM-DD", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
                 "tested_by": { "type": "string", "description": "実施者名" },
                 "steps": {
@@ -65,37 +70,76 @@
                 },
                 "result": {
                     "type": "string",
-                    "enum": ["pass", "fail", "pending"]
+                    "enum": [ "pass", "fail", "pending", "not_run" ]
                 }
             }
         },
         "step": {
             "type": "object",
-            "required": ["id", "action", "expected", "evidence"],
+            "required": [ "id", "action", "expected", "evidence" ],
             "additionalProperties": false,
             "properties": {
                 "id": {
                     "type": "string",
                     "description": "TEST-001-TC001-S01 形式",
                     "pattern": "^TEST-\\d{3}-TC\\d{3}-S\\d{2}$"
-                },                "subtitle":     { "type": "string", "description": "試験項目・小見出し（省略可）" },
+                }, "subtitle": { "type": "string", "description": "試験項目・小見出し（省略可）" },
                 "precondition": { "type": "string" },
-                "action":       { "type": "string" },
-                "expected":     { "type": "string" },
-                "evidence":     { "$ref": "#/$defs/evidence" }
+                "action": { "type": "string" },
+                "expected": { "type": "string" },
+                "result_detail": {
+                    "description": "ステップ実施の詳細（合否チェック/備考）",
+                    "oneOf": [
+                        { "type": "string" },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "status": {
+                                    "type": "string",
+                                    "enum": [ "pass", "fail", "pending", "not_run" ]
+                                },
+                                "passed": { "type": "boolean" },
+                                "remark": { "type": "string" }
+                            }
+                        }
+                    ]
+                },
+                "resulet_detail": {
+                    "description": "移行互換用（旧誤記）。保存時は result_detail を使用すること",
+                    "oneOf": [
+                        { "type": "string" },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "status": {
+                                    "type": "string",
+                                    "enum": [ "pass", "fail", "pending", "not_run" ]
+                                },
+                                "passed": { "type": "boolean" },
+                                "remark": { "type": "string" }
+                            }
+                        }
+                    ]
+                },
+                "evidence": { "$ref": "#/$defs/evidence" }
             }
         },
         "evidence": {
             "type": "object",
-            "required": ["type"],
             "additionalProperties": false,
             "properties": {
-                "type": {
-                    "type": "string",
-                    "enum": ["automated", "manual", "none"]
-                },
-                "testFile":    { "type": "string" },
-                "screenshot":  { "type": "string" }
+                "memo": { "type": "string" },
+                "screenshot": {
+                    "oneOf": [
+                        { "type": "string" },
+                        {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
+                    ]
+                }
             }
         }
     }

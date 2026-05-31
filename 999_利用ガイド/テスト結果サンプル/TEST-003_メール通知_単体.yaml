@@ -1,12 +1,9 @@
-# external/5_test_specs/TEST-003_メール通知_単体.yaml
-# 前提条件なし（preconditions キーを省略）の例
-
 id: TEST-003
 title: メール通知 単体テスト仕様書
 version: "1.0"
 date: "2026-05-22"
 author: 担当者名
-
+outputDir: ./evidence
 cases:
   - id: TC-001
     title: 支援記録保存時の通知送信
@@ -18,19 +15,11 @@ cases:
         action: NotifyService::send() に支援記録IDを渡す
         expected: メールキューに 1 件追加される
         evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Unit/NotifyServiceTest.php
-
       - id: TEST-003-TC001-S02
         subtitle: キュー処理後に配信される
         action: キューワーカーを 1 ジョブ処理させる
         expected: 担当者のメールアドレス宛にメールが配信される
         evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Unit/NotifyServiceTest.php
-
-    result: pass
-
   - id: TC-002
     title: 無効なメールアドレスは通知しない
     tested_at: "2026-05-22"
@@ -41,18 +30,9 @@ cases:
         action: NotifyService::send() にメールアドレス未設定のユーザーIDを渡す
         expected: 例外をスローせず、キューに追加されない
         evidence:
-          type: automated
-          testFile: C:/repos/blueberry-app/tests/Unit/NotifyServiceTest.php
-
-      - id: TEST-003-TC002-S02  
+      - id: TEST-003-TC002-S02
         subtitle: 無効アドレスでの通知確認
         precondition: メールアドレス未設定のユーザーが存在すること
         action: NotifyService::send() にメールアドレス未設定のユーザーIDを渡す
         expected: 例外をスローせず、キューに追加されない
         evidence:
-          type: none
-          screenshot: 
-
-    result: pass
-
-

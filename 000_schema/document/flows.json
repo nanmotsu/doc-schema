@@ -1,58 +1,32 @@
 {
     "flows": [
         {
-            "key": "new_development",
-            "label": "新規開発",
-            "description": "要望・企画から始まる新規機能開発",
-            "when": "アイデアや要望が起点。外部仕様から内部設計まで一通り揃える場合。",
-            "steps": [
-                "source",
-                "issue",
-                "decision",
-                "requirement",
-                "spec_external",
-                "spec_internal",
-                "task_impl"
-            ]
+            "key": "level1_quick_fix",
+            "label": "Lv1 軽微修正",
+            "description": "軽微な不具合や単純修正を最短で収束させるフロー",
+            "when": "影響範囲が狭く、仕様変更を伴わない場合。",
+            "steps": [ "issue", "ticket_level1", "test_case" ]
         },
         {
-            "key": "customer_requirement",
-            "label": "顧客要件が最初からある",
-            "description": "顧客から要件が提示された場合の開発",
-            "when": "客先から仕様書や要望書が届いた場合。要件の矛盾・不足を整理してから進める。",
-            "steps": [
-                "source",
-                "requirement",
-                "issue",
-                "decision",
-                "spec_external",
-                "spec_internal",
-                "task_impl"
-            ]
+            "key": "level2_change",
+            "label": "Lv2 変更票",
+            "description": "変更票を起点に仕様更新とテストを実施する標準フロー",
+            "when": "仕様や運用ドキュメントに変更が必要な場合。",
+            "steps": [ "issue", "decision", "change_level2", "specification", "test_case", "manual", "runbook", "customer_artifact" ]
         },
         {
-            "key": "existing_modification",
-            "label": "既存機能の改修",
-            "description": "既存機能の改善・修正",
-            "when": "バグ修正、仕様変更、リファクタリングなど既存コードへの変更が起点の場合。",
-            "steps": [
-                "source",
-                "issue",
-                "decision",
-                "requirement",
-                "spec_internal",
-                "task_impl"
-            ]
+            "key": "level3_mod_project",
+            "label": "Lv3 改造案件",
+            "description": "改造案件フォルダ単位で要求・仕様・テストを管理するフロー",
+            "when": "影響範囲が広く、要求から再整理が必要な場合。",
+            "steps": [ "issue", "decision", "mod_project", "requirement", "specification", "test_case", "customer_artifact" ]
         },
         {
-            "key": "quick_task",
-            "label": "小さな作業（タスクのみ）",
-            "description": "調査・検討不要な軽微な作業",
-            "when": "内容が自明で設計・要件整理が不要な場合。ドキュメントを増やしたくないとき。",
-            "steps": [
-                "source",
-                "task_impl"
-            ]
+            "key": "release_closure",
+            "label": "リリース整理",
+            "description": "変更・仕様・試験・運用文書を束ねてリリース記録を作る",
+            "when": "出荷/リリース時のトレーサビリティを確定する場合。",
+            "steps": [ "release_note" ]
         }
     ]
 }

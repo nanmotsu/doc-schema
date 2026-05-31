@@ -11,7 +11,7 @@ import { readdirSync, mkdirSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline";
-import { WORKSPACE, EXCLUDED_PREFIXES, PROJECT_FOLDER_STRUCTURE } from "../shared/definitions.mjs";
+import { WORKSPACE, EXCLUDED_PREFIXES, PROJECT_FOLDER_STRUCTURE, PROJECT_BOOTSTRAP_FILES } from "../shared/definitions.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -70,11 +70,20 @@ async function main() {
         writeFileSync(join(projectDir, rel, ".gitkeep"), "");
     }
 
+    // 主要ファイルを初期配置
+    for (const file of PROJECT_BOOTSTRAP_FILES) {
+        writeFileSync(join(projectDir, file.path), file.content, "utf-8");
+    }
+
     console.log(`\n作成完了: ${folderName}`);
     console.log(`場所: ${projectDir}`);
     console.log(`\nフォルダ構成:`);
     for (const rel of PROJECT_FOLDER_STRUCTURE) {
         console.log(`  ${folderName}/${rel}`);
+    }
+    console.log("\n初期ファイル:");
+    for (const file of PROJECT_BOOTSTRAP_FILES) {
+        console.log(`  ${folderName}/${file.path}`);
     }
 }
 

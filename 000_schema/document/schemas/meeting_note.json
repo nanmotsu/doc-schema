@@ -1,0 +1,59 @@
+{
+    "key": "meeting_note",
+    "label": "Meeting",
+    "prefix": "MEETING",
+    "idExample": "MEETING-20260530-001",
+    "dirParts": [ "docs", "50_meetings" ],
+    "numbering": "name",
+    "defaultStatus": "active",
+    "statuses": [
+        { "code": "draft", "label": "draft" },
+        { "code": "review", "label": "review" },
+        { "code": "approved", "label": "approved" },
+        { "code": "active", "label": "active" },
+        { "code": "deprecated", "label": "deprecated" },
+        { "code": "closed", "label": "closed" }
+    ],
+    "schema": {
+        "required": [ "id", "title", "type", "status", "visibility" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^MEETING-.+$" },
+            "title": { "type": "string" },
+            "type": { "type": "string", "enum": [ "meeting" ] },
+            "status": { "type": "string", "enum": [ "draft", "review", "approved", "active", "deprecated", "closed" ] },
+            "created_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "owner": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "issues": { "type": "array", "items": { "type": "string", "pattern": "^(\\[\\[[^\\]\\n]+\\]\\]|ISSUE-\\d{4}-\\d{3})$" } },
+            "visibility": { "type": "string", "enum": [ "internal", "customer", "partial", "confidential" ] }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "title: {{title}}",
+        "type: meeting",
+        "status: {{status}}",
+        "created_at: {{date}}",
+        "updated_at: {{date}}",
+        "owner:",
+        "tags:",
+        "  - ",
+        "issues:",
+        "  - ",
+        "visibility: internal",
+        "---",
+        "",
+        "# 会議議事録",
+        "",
+        "## 1. 目的",
+        "",
+        "## 2. 議題",
+        "",
+        "## 3. 決定事項",
+        "",
+        "## 4. アクション",
+        ""
+    ]
+}

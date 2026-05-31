@@ -1,0 +1,54 @@
+{
+    "key": "mod_project",
+    "label": "Lv3 Project",
+    "prefix": "MOD",
+    "idExample": "MOD-2026-001",
+    "dirParts": [ "docs", "10_specs", "changes", "level3_projects" ],
+    "numbering": "year_seq",
+    "defaultStatus": "draft",
+    "statuses": [
+        { "code": "draft", "label": "draft" },
+        { "code": "review", "label": "review" },
+        { "code": "approved", "label": "approved" },
+        { "code": "active", "label": "active" },
+        { "code": "deprecated", "label": "deprecated" },
+        { "code": "closed", "label": "closed" }
+    ],
+    "schema": {
+        "required": [ "id", "title", "type", "level", "status", "visibility" ],
+        "properties": {
+            "id": { "type": "string", "pattern": "^MOD-\\d{4}-\\d{3}$" },
+            "title": { "type": "string" },
+            "type": { "type": "string", "enum": [ "modernization_project" ] },
+            "level": { "type": "integer", "enum": [ 3 ] },
+            "status": { "type": "string", "enum": [ "draft", "review", "approved", "active", "deprecated", "closed" ] },
+            "requirements": { "type": "array", "items": { "type": "string", "pattern": "^(\\[\\[[^\\]\\n]+\\]\\]|REQ-\\d{4}-\\d{3})$" } },
+            "visibility": { "type": "string", "enum": [ "internal", "customer", "partial", "confidential" ] }
+        }
+    },
+    "body": [
+        "---",
+        "id: {{id}}",
+        "title: {{title}}",
+        "type: modernization_project",
+        "level: 3",
+        "status: {{status}}",
+        "requirements:",
+        "  - ",
+        "visibility: internal",
+        "---",
+        "",
+        "# Lv3 改造案件",
+        "",
+        "## 1. 目的",
+        "",
+        "## 2. スコープ",
+        "",
+        "## 3. 体制",
+        "",
+        "## 4. 成果物一覧",
+        "",
+        "## 5. 影響分析",
+        ""
+    ]
+}
