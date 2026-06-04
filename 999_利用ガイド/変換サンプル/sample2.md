@@ -7,22 +7,35 @@ revisionHistoryPage: false
 pdfOutputDir: .
 htmlOutputDir: .
 docxOutputDir: .
+# headerFooter:              # ヘッダー・フッターは文書ごとにフロントマターで指定
+#   enabled: true
+#   fontSize: "9px"
+#   header:
+#     left: ""
+#     center: ""
+#     right: ""
+#   footer:
+#     left: ""
+#     center: "<span class='pageNumber'></span>/<span class='totalPages'></span>"
+#     right: ""
 ---
 
 # Mermaid 検証
 
 ## コードブロック図番号の確認
 
-コードブロック先頭に %%fig: キャプション%% を書いた場合のみ、図番号付きで出力される。
+コードブロックに図番号を付ける場合は、`:::figure` で囲んでキャプションを記述する。
 
+:::figure width=80%
 ```js
-%%fig: 入力値チェック関数（図番号あり）%%
 function validateInput(value) {
     if (!value) return { ok: false, reason: "empty" };
     if (value.length > 20) return { ok: false, reason: "too-long" };
     return { ok: true };
 }
 ```
+入力値チェック関数（図番号あり）
+:::
 
 先頭ディレクティブを書かない通常コードブロックは、図番号なしで出力される。
 
@@ -36,6 +49,7 @@ function normalizeName(name) {
 
 深いネストと多数ノードで文字がめり込まないかを確認する。
 
+:::figure width=80%
 ```mermaid
 flowchart TD
     A([開始]) --> B{入力値の検証}
@@ -57,13 +71,14 @@ flowchart TD
     E2 --> M
     E3 --> M
 ```
-
 フロー図1 複雑なフローチャート
+:::
 
 ## ノード内改行の確認
 
 `<br>` でノード内を改行しても文字が重ならないかを確認する。
 
+:::figure width=80%
 ```mermaid
 flowchart LR
     A["利用者<br>（ブラウザ）"] --> B["Webサーバー<br>（Nginx）"]
@@ -72,35 +87,36 @@ flowchart LR
     C --> E["キャッシュ<br>（Redis）"]
     C --> F["ファイル<br>ストレージ<br>（S3互換）"]
 ```
-
 フロー図2 ノード内改行テスト
+:::
 
 ## 横幅指定（70%）
 
-`%%width: 70%%` ディレクティブで図の横幅を70%に制限できることを確認する。
+`:::figure width=70%` で図の横幅を70%に制限できることを確認する。
 
+:::figure width=70%
 ```mermaid
-%%width: 70%
 flowchart LR
     A[入力] --> B[処理] --> C[出力]
 ```
-
 フロー図3 70%幅指定
+:::
 
 ## 横幅指定（50%）
 
+:::figure width=50%
 ```mermaid
-%%width: 50%
 flowchart TD
     開始 --> 処理A
     処理A --> 処理B
     処理B --> 終了
 ```
-
 フロー図4 50%幅指定
+:::
 
 ## シーケンス図（複数参加者）
 
+:::figure width=80%
 ```mermaid
 sequenceDiagram
     autonumber
@@ -125,8 +141,8 @@ sequenceDiagram
         FE-->>U: エラーメッセージ表示
     end
 ```
-
 フロー図5 ログインシーケンス
+:::
 
 ---
 
@@ -183,15 +199,15 @@ sequenceDiagram
 
 ## Mermaidと表の混在
 
+:::figure width=60%
 ```mermaid
-%%width: 60%
 flowchart LR
     DB[(データベース)] --> API[REST API]
     API --> WEB[Webアプリ]
     API --> MOB[モバイル]
 ```
-
 フロー図6 システム構成（60%幅）
+:::
 
 上図のAPIエンドポイント一覧：
 

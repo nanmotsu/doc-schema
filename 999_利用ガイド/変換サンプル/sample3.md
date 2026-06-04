@@ -7,8 +7,19 @@ revisionHistoryPage: false
 tocManual: |
   - 1. はじめに ................................ 1
   - 2. 手入力目次の設定 ........................ 2
-  - 3. コードブロック図番号 .................... 3
+    - 3. コード図番号（figure統一） .............. 3
   - 4. Mermaidと手入力目次の併用 ............... 4
+headerFooter:              # ヘッダー・フッターは文書ごとにフロントマターで指定
+  enabled: true
+  fontSize: "9px"
+  header:
+    left: ""
+    center: ""
+    right: ""
+  footer:
+    left: ""
+    center: "<span class='pageNumber'></span>/<span class='totalPages'></span>"
+    right: ""
 ---
 
 # はじめに
@@ -16,25 +27,27 @@ tocManual: |
 このサンプルは、次の2点を確認するためのファイルです。
 
 - `tocManual` で目次を手入力できること
-- コードブロックの先頭に `%%fig: ...%%` を書いた場合のみ図番号が付くこと
+- `:::figure` でコード/Mermaidの図番号を統一できること
 
 # 手入力目次の設定
 
 このファイルは `toc: true` かつ `tocManual` を指定しています。
 そのため、見出しからの自動目次ではなく、`tocManual` の内容が優先されます。
 
-# コードブロック図番号
+# コード図番号（figure統一）
 
-## 図番号あり（ディレクティブあり）
+## 図番号あり（:::figure）
 
+:::figure width=100%
 ```js
-%%fig: 利用者名の正規化処理%%
 function normalizeUserName(name) {
     return String(name).trim().replace(/\s+/g, " ");
 }
 ```
+利用者名の正規化処理
+:::
 
-## 図番号なし（ディレクティブなし）
+## 図番号なし（通常コードブロック）
 
 ```js
 function toDisplayDate(isoDate) {
@@ -45,21 +58,22 @@ function toDisplayDate(isoDate) {
 
 # Mermaidと手入力目次の併用
 
+:::figure width=70%
 ```mermaid
 flowchart LR
     A[入力] --> B[検証]
     B --> C[保存]
     C --> D[完了]
 ```
-
 業務フロー図（手入力目次サンプル）
+:::
 
 ## Mermaid高さ指定（height）
 
-先頭に `%%height: 60mm%%` を書くと、図の縦方向サイズ上限を指定できます。
+`:::figure height=60mm` で図の縦方向サイズ上限を指定できます。
 
+:::figure width=70% height=60mm
 ```mermaid
-%%height: 60mm%%
 flowchart TD
     A[開始] --> B[入力チェック]
     B --> C[正規化]
@@ -67,8 +81,8 @@ flowchart TD
     D --> E[通知]
     E --> F[終了]
 ```
-
 業務フロー図（height指定サンプル）
+:::
 
 # 長いテーブルの改ページ検証
 

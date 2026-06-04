@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from "url";
 
 import { marked } from "marked";
 import { transformDSL } from "./dsl.mjs";
+import { resolveDslReferences } from "./references.mjs";
 import { createRequire } from "module";
 import yaml from "js-yaml";
 
@@ -439,30 +440,6 @@ function parseMd(src) {
 }
 
 /**
- * HTMLエスケープ済みコード文字列の先頭ディレクティブを解析する。
- * - %%fig: キャプション%%
- * - %%figure: キャプション%%
- * - %%caption: キャプション%%
- * ディレクティブがある場合のみ図番号付きキャプション化する。
- */
-function parseCodeFigureDirective(escapedCode) {
-    const m = escapedCode.match(/^%%\s*(?:fig|figure|caption):\s*(.*?)\s*%%\s*(?:\r?\n|$)/i);
-    if (!m) return { caption: null, code: escapedCode };
-    const caption = (m[1] ?? "").trim();
-    const code = escapedCode.slice(m[0].length);
-    return { caption: caption || null, code };
-}
-
-function escapeHtml(text) {
-    return String(text ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-
-/**
  * Mermaidコード先頭のディレクティブを抽出する。
  * 対応:
  *   %%width: 70%%
@@ -566,6 +543,21 @@ function resolveOutputFileName(meta, key, fallback) {
 // ── 変換 ───────────────────────────────────────────────────
 const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
+let resolvedBody = body;
+
+try {
+    const refResolved = resolveDslReferences(body, {
+        headingConfig: styleConfig.heading,
+        dslBlocks: dslConfig.blocks,
+    });
+    resolvedBody = refResolved.markdown;
+    if (refResolved.unknownRefs.length > 0) {
+        console.warn(`⚠ 未解決の参照ID: ${refResolved.unknownRefs.join(", ")}`);
+    }
+} catch (e) {
+    console.error(`参照解決エラー: ${e.message}`);
+    process.exit(1);
+}
 
 const htmlDir = resolveOutputDir(meta, srcDir, "htmlOutputDir");
 const pdfDir = resolveOutputDir(meta, srcDir, "pdfOutputDir");
@@ -579,34 +571,23 @@ const htmlPath = join(htmlDir, htmlFileName);
 const pdfPath = join(pdfDir, pdfFileName);
 
 // アセットルート解決
-// assetsInternal: フロントマターのみ（プロジェクトルートからの相対パス）
-// assetsExternal: フロントマターのみ（外部 URL または絶対パス）
+// assetsInternal がある場合はそのパスを基準、未指定時は入力Markdownのディレクトリを基準にする。
 const internalRaw = meta.assetsInternal ?? null;
-const internalAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : null;
-const externalBase = meta.assetsExternal ?? null;
-const assetsCtx = { internalAbs, externalBase };
+const assetsBaseAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : srcDir;
+const assetsCtx = { assetsBaseAbs };
 
-// cover パスの解決（coverOrigin: internal | external に基づく）
+// cover パスの解決
 // 相対パスのみ解決し、https: / file: / data: はそのまま使用
 if (meta.cover && !/^(https?:|file:|data:)/i.test(meta.cover)) {
-    const origin = meta.coverOrigin ?? 'internal';
     const clean = meta.cover.replace(/^\.\//, '');
-    if (origin === 'external' && externalBase) {
-        if (/^https?:/i.test(externalBase)) {
-            meta.cover = externalBase.replace(/\/$/, '') + '/' + clean;
-        } else {
-            meta.cover = pathToFileURL(resolve(externalBase, clean)).href;
-        }
-    } else if (internalAbs) {
-        meta.cover = pathToFileURL(resolve(internalAbs, clean)).href;
-    }
+    meta.cover = pathToFileURL(resolve(assetsBaseAbs, clean)).href;
 }
 
 // 見出しスラグマップを構築（TOC と見出し id に共有）
-const headings = buildSlugMap(body);
+const headings = buildSlugMap(resolvedBody);
 
 // bodyHtml 生成後に <h1-3> タグへ id を付与（数値 ID で PDF との互換性を確保）
-const rawBodyHtml = transformDSL(body, parseMd, assetsCtx);
+const rawBodyHtml = transformDSL(resolvedBody, parseMd, assetsCtx);
 let headingPostIndex = 0;
 const bodyHtml = rawBodyHtml.replace(/<h([1-3])>/g, (_, lv) => {
     const h = headings[headingPostIndex++];
@@ -616,9 +597,10 @@ const bodyHtml = rawBodyHtml.replace(/<h([1-3])>/g, (_, lv) => {
 
 // Mermaid コードブロックを検出・収集しプレースホルダーに置換。
 // ブロック先頭の %%width: 70%% / %%height: 180mm%% ディレクティブでサイズ指定可能。
+// 図番号付与は :::figure DSL 側で行うため、ここでは単純にSVGへ置換する。
 const mermaidBlocks = [];
-const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>(?:\s*<p>([\s\S]*?)<\/p>)?/g;
-let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) => {
+const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g;
+let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code) => {
     const idx = mermaidBlocks.length;
     const decoded = code
         .replace(/&amp;/g, '&')
@@ -627,27 +609,8 @@ let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code, caption) =
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
     const { code: cleanCode, width, height } = parseMermaidDirectives(decoded);
-    mermaidBlocks.push({ idx, code: cleanCode, caption: (caption || '').trim(), width, height });
+    mermaidBlocks.push({ idx, code: cleanCode, width, height });
     return `__MERMAID_${idx}__`;
-});
-
-// 通常コードブロックを任意で図化する。
-// 先頭行に %%fig: キャプション%% を書いた場合のみ figure+figcaption に変換。
-const codeBlockRegex = /<pre><code(?: class="([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g;
-processedBodyHtml = processedBodyHtml.replace(codeBlockRegex, (_, klass, escapedCode) => {
-    const classes = klass ? ` class="${klass}"` : "";
-    const isMermaid = typeof klass === "string" && /(?:^|\s)language-mermaid(?:\s|$)/.test(klass);
-    if (isMermaid) return `<pre><code${classes}>${escapedCode}</code></pre>`;
-
-    const { caption, code } = parseCodeFigureDirective(escapedCode);
-    if (!caption) return `<pre><code${classes}>${escapedCode}</code></pre>`;
-
-    return [
-        '<figure class="figure code-figure">',
-        `<pre><code${classes}>${code}</code></pre>`,
-        `<figcaption>${escapeHtml(caption)}</figcaption>`,
-        '</figure>',
-    ].join("");
 });
 const hasMermaid = mermaidBlocks.length > 0;
 
@@ -655,10 +618,15 @@ const titlePageHtml = buildTitlePage(meta);
 const revisionHistoryHtml = buildRevisionHistoryPage(meta);
 const tocHtml = buildTOC(headings, meta, parseMd);
 const paragraphIndentEnabled = isParagraphIndentEnabled(meta, pageConfig);
+const effectivePageConfig = {
+    ...pageConfig,
+    // headerFooter は文書依存のため frontmatter を優先
+    headerFooter: meta.headerFooter ?? pageConfig.headerFooter ?? { enabled: false },
+};
 const bodyClass = paragraphIndentEnabled ? ' class="indent-body"' : "";
 
 // タイトル: フロントマター title → 本文の最初の h1 → ファイル名
-const title = meta.title || body.match(/^#\s+(.+)/m)?.[1] || baseName;
+const title = meta.title || resolvedBody.match(/^#\s+(.+)/m)?.[1] || baseName;
 
 // MermaidはSVG展開後の静的HTMLに埋め込むため、スクリプトは不要
 // プレースホルダーを持つHTMLを先に生成し、後でSVGを埋め込む
@@ -747,28 +715,29 @@ if (hasMermaid) {
             )
     );
 
-    // 取得したSVGをfigureにラップしてプレースホルダーを置換
+    // 取得したSVGを埋め込んでプレースホルダーを置換
     for (let i = 0; i < mermaidBlocks.length; i++) {
-        const { caption, width, height } = mermaidBlocks[i];
-        const figcaption = caption ? `<figcaption>${caption}</figcaption>` : '';
-        const widthStyle = width ? ` style="width:${width};margin:0 auto;"` : '';
-        const svgWithHeight = height
-            ? appendInlineStyleToSvg(fixedSvgs[i], `max-height:${height};height:auto;max-width:100%;display:block;margin:0 auto;`)
+        const { width, height } = mermaidBlocks[i];
+        const placeholder = `__MERMAID_${i}__`;
+        const parentHeightMatch = finalHtml.match(
+            new RegExp(`<div class="figure-body"[^>]*style="[^"]*max-height:([^;"]+)[^"]*"[^>]*>[\\s\\S]*?${placeholder}`)
+        );
+        const effectiveHeight = height || parentHeightMatch?.[1]?.trim() || null;
+        const blockStyle = width ? ` style="width:${width};margin:0 auto;"` : '';
+        const svgWithHeight = effectiveHeight
+            ? appendInlineStyleToSvg(fixedSvgs[i], `max-height:${effectiveHeight};height:auto;max-width:100%;display:block;margin:0 auto;`)
             : fixedSvgs[i];
-        finalHtml = finalHtml.replace(`__MERMAID_${i}__`, `<figure class="figure"${widthStyle}>${svgWithHeight}${figcaption}</figure>`);
+        finalHtml = finalHtml.replace(placeholder, `<div class="mermaid-block"${blockStyle}>${svgWithHeight}</div>`);
     }
 }
 
-// origin を持たない img（通常マークダウン画像・ origin 未指定 figure）の相対 src を
-// internalAbs 起点の絶対 file:/// パスに書き換える。
-if (internalAbs) {
-    const absNorm = internalAbs.replace(/\\/g, "/");
-    finalHtml = finalHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
-        if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
-        const clean = src.replace(/^\.\//, "");
-        return `${pre}${pathToFileURL(resolve(absNorm, clean)).href}${post}`;
-    });
-}
+// 相対 img src を assetsBaseAbs 起点の絶対 file:/// パスに書き換える。
+const absNorm = assetsBaseAbs.replace(/\\/g, "/");
+finalHtml = finalHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
+    if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
+    const clean = src.replace(/^\.\//, "");
+    return `${pre}${pathToFileURL(resolve(absNorm, clean)).href}${post}`;
+});
 writeFileSync(htmlPath, finalHtml, "utf-8");
 console.log(`✓ HTML: ${htmlPath}`);
 
@@ -790,11 +759,11 @@ await page.goto(pathToFileURL(htmlPath).href, {
 
 await page.pdf({
     path: pdfPath,
-    format: pageConfig.paper,
-    landscape: pageConfig.orientation === "landscape",
-    margin: pageConfig.margin,
+    format: effectivePageConfig.paper,
+    landscape: effectivePageConfig.orientation === "landscape",
+    margin: effectivePageConfig.margin,
     printBackground: true,
-    ...buildHeaderFooterOptions(pageConfig),
+    ...buildHeaderFooterOptions(effectivePageConfig),
 });
 
 await browser.close();

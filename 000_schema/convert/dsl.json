@@ -116,13 +116,8 @@
             },
             "snippet": {
                 "prefix": "fig",
-                "description": "図（キャプション付き・internal起点）",
-                "body": [ ":::figure ${4:width=80%} origin=internal", "![${1:alt}](${2:path})", "", "${3:キャプション}", ":::" ]
-            },
-            "snippetExt": {
-                "prefix": "fige",
-                "description": "図（キャプション付き・external起点）",
-                "body": [ ":::figure ${4:width=80%} origin=external", "![${1:alt}](${2:path})", "", "${3:キャプション}", ":::" ]
+                "description": "図（キャプション付き）",
+                "body": [ ":::figure ${4:width=80%}", "![${1:alt}](${2:path})", "", "${3:キャプション}", ":::" ]
             }
         },
         {

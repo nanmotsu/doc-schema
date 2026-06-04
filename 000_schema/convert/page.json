@@ -8,20 +8,5 @@
         "bottom": "15mm",
         "left": "15mm"
     },
-    "headerFooter": {
-        "$comment": "enabled: true にするとヘッダー・フッターを表示。内容にleft/center/rightの3位置を指定。<span class='pageNumber'><\/span>はページ番号、<span class='totalPages'><\/span>は総ページ数。marginはヘッダー・フッターの表示領域を假確保するためtopを大きめに設定する必要がある",
-        "enabled": true,
-        "fontSize": "9px",
-        "header": {
-            "left": "",
-            "center": "",
-            "right": ""
-        },
-        "footer": {
-            "left": "",
-            "center": "",
-            "right": ""
-        }
-    },
     "paragraphIndent": true, "tocDepth": 3, "assetsRoot": "997_作成元データ"
 }

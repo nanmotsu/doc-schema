@@ -28,8 +28,9 @@ const blockMap = new Map(dslConfig.blocks.map(b => [b.name, b]));
  */
 function parseAttrs(attrStr) {
     const result = {};
-    for (const m of attrStr.matchAll(/(\w+)=([^\s]+)/g)) {
-        result[m[1]] = m[2];
+    for (const m of attrStr.matchAll(/(\w+)=("[^"]*"|'[^']*'|[^\s]+)/g)) {
+        const raw = m[2] ?? "";
+        result[m[1]] = raw.replace(/^['"]|['"]$/g, "");
     }
     return result;
 }
@@ -62,10 +63,10 @@ function splitSegments(src) {
  * DSL ブロックを dsl.json の定義に基づいて HTML に変換する
  * switch/case の代わりにスキーマのプロパティで分岐する
  * @param {string} type
- * @param {Record<string,string>} attrs  開きタグ属性（例: { width: '80%', origin: 'internal' }）
+ * @param {Record<string,string>} attrs  開きタグ属性（例: { width: '80%' }）
  * @param {string} content
  * @param {function(string): string} parseFn
- * @param {{ internalAbs?: string|null, externalBase?: string|null }} ctx  アセットルートコンテキスト
+ * @param {{ assetsBaseAbs?: string|null }} ctx  アセットルートコンテキスト
  */
 function buildBlock(type, attrs, content, parseFn, ctx = {}) {
     const block = blockMap.get(type);
@@ -85,55 +86,66 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         const defaults = block.defaults ?? {};
         const width = attrs.width ?? defaults.width ?? null;
         const height = attrs.height ?? defaults.height ?? null;
-        const sizeStyle = buildSizeStyle(width, height);
+        const sizeStyle = buildImageSizeStyle(width, height);
 
         // align: left / center / right（省略時は CSS クラスのデフォルト = center）
         const align = attrs.align ?? null;
+        const idAttr = attrs.id ? ` id="${attrs.id}"` : '';
 
-        const lines = trimmed.split('\n');
-        const imgLine = lines.find(l => /^!\[/.test(l.trim())) ?? '';
-        const captionLines = lines.filter(l => !/^!\[/.test(l.trim()) && l.trim()).join(' ').trim();
+        const { bodyMd, caption } = splitFigureBodyAndCaption(trimmed);
+        const hasImage = /^!\[/.test((bodyMd || "").trim());
+        const codeFenceMatch = (bodyMd || "").trim().match(/^```\s*([^\r\n]*)/);
+        const codeLang = (codeFenceMatch?.[1] || "").trim().toLowerCase();
+        const isNonMermaidCodeFigure = !!codeFenceMatch && codeLang !== "mermaid";
+        const figureClass = isNonMermaidCodeFigure ? `${block.class} code-figure` : block.class;
+        let effectiveBodyMd = bodyMd || "";
 
-        // marked.parse が出力する <img> に style 属性を注入
-        let imgHtml = parseFn(imgLine).trim().replace(/<img(\s)/i, `<img style="${sizeStyle}"$1`);
+        // Mermaid は build.mjs 側の高さ縮小ロジックを使うため、
+        // figure属性の height をコード内ディレクティブへ橋渡しする。
+        if (height && codeLang === "mermaid") {
+            const hasHeightDirective = /^```\s*mermaid\s*\r?\n\s*%%\s*height\s*:/i.test(effectiveBodyMd.trimStart());
+            if (!hasHeightDirective) {
+                effectiveBodyMd = effectiveBodyMd.replace(
+                    /^```\s*mermaid\s*\r?\n/i,
+                    (m) => `${m}%%height:${height}%%\n`
+                );
+            }
+        }
 
-        // origin 属性によるパス解決
-        // origin=internal → ctx.internalAbs（プロジェクトルート起点）で file:/// に変換
-        // origin=external → ctx.externalBase（外部 URL/パス起点）を先頭に付与
-        const origin = attrs.origin;
-        if (origin) {
-            const root = origin === 'internal' ? (ctx.internalAbs ?? null) : (ctx.externalBase ?? null);
-            if (root) {
-                imgHtml = imgHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
+        const bodyStyle = buildFigureBodyStyle(width, (codeLang === "mermaid" ? null : height));
+        let bodyHtml = parseFn(effectiveBodyMd).trim();
+
+        if (hasImage) {
+            // marked.parse が出力する <img> に style 属性を注入
+            bodyHtml = bodyHtml.replace(/<img(\s)/i, `<img style="${sizeStyle}"$1`);
+
+            // 相対パスは assetsBaseAbs 起点で file:/// に解決
+            const assetsBaseAbs = ctx.assetsBaseAbs ?? null;
+            if (assetsBaseAbs) {
+                bodyHtml = bodyHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
                     if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
                     const clean = src.replace(/^\.\//, "");
-                    if (origin === 'internal') {
-                        const abs = resolve(root, clean).replace(/\\/g, "/");
-                        return `${pre}file:///${abs}${post}`;
-                    } else {
-                        // HTTP(S) URL はそのまま連結、ローカルパス（C:ドライブ等）は file:/// に変換
-                        if (/^https?:/i.test(root)) {
-                            const sep = root.endsWith('/') ? '' : '/';
-                            return `${pre}${root}${sep}${clean}${post}`;
-                        }
-                        const abs = resolve(root, clean).replace(/\\/g, "/");
-                        return `${pre}file:///${abs}${post}`;
-                    }
+                    const abs = resolve(assetsBaseAbs, clean).replace(/\\/g, "/");
+                    return `${pre}file:///${abs}${post}`;
                 });
             }
         }
 
         const alignStyle = align ? ` style="text-align:${align}"` : '';
+        const bodyWrapper = bodyStyle
+            ? `<div class="figure-body" style="${bodyStyle}">${bodyHtml}</div>`
+            : bodyHtml;
         return [
-            `<${block.element} class="${block.class}"${alignStyle}>`,
-            imgHtml,
-            captionLines ? `<figcaption>${captionLines}</figcaption>` : '',
+            `<${block.element} class="${figureClass}"${idAttr}${alignStyle}>`,
+            bodyWrapper,
+            caption ? `<figcaption>${caption}</figcaption>` : '',
             `</${block.element}>`,
         ].filter(Boolean).join('\n');
     }
 
     // captionPosition="top": table（上キャプション + 表）
     if (block.captionPosition === "top") {
+        const idAttr = attrs.id ? ` id="${attrs.id}"` : '';
         const lines = trimmed.split('\n');
         // 先頭行が | で始まる場合はキャプションなし（表の本体として扱う）
         const firstIsTableRow = /^\|/.test(lines[0]?.trim() ?? '');
@@ -152,7 +164,7 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         }
 
         return [
-            `<${block.element} class="${block.class}">`,
+            `<${block.element} class="${block.class}"${idAttr}>`,
             caption ? `<p class="table-caption">${caption}</p>` : '',
             tableHtml,
             `</${block.element}>`,
@@ -168,11 +180,74 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
  * width / height 値から img 用の style 文字列を組み立てる
  * max-width:100% は常に付与して画面幅オーバーを防ぐ
  */
-function buildSizeStyle(width, height) {
+function buildImageSizeStyle(width, height) {
     const parts = ['max-width:100%'];
     if (width) parts.push(`width:${width}`);
     if (height && height !== 'auto') parts.push(`height:${height}`);
     return parts.join(';');
+}
+
+/**
+ * 図本体（画像/コード/Mermaid 共通）へ適用するサイズ指定スタイルを組み立てる。
+ */
+function buildFigureBodyStyle(width, height) {
+    const parts = [];
+    if (width) parts.push(`width:${width}`);
+    if (height && height !== 'auto') {
+        parts.push(`max-height:${height}`);
+    }
+    if (parts.length > 0) parts.push('margin:0 auto');
+    return parts.join(';');
+}
+
+/**
+ * :::figure ブロック本文から「図本体」と「キャプション」を抽出する。
+ * - 画像図: ![...](...) 行を図本体として扱い、それ以外の非空行をキャプション化
+ * - 非画像図: 最後の「コードフェンス外の非空行」をキャプション、残りを図本体とする
+ */
+function splitFigureBodyAndCaption(trimmed) {
+    const lines = trimmed.split('\n');
+    const imageLines = lines.filter(l => /^!\[/.test(l.trim()));
+
+    if (imageLines.length > 0) {
+        const bodyMd = imageLines.join('\n');
+        const caption = lines
+            .filter(l => !/^!\[/.test(l.trim()) && l.trim())
+            .join(' ')
+            .trim();
+        return { bodyMd, caption };
+    }
+
+    const outsideFence = [];
+    let inFence = false;
+    for (const line of lines) {
+        const t = line.trim();
+        if (/^```/.test(t)) {
+            outsideFence.push(false);
+            inFence = !inFence;
+            continue;
+        }
+        outsideFence.push(!inFence);
+    }
+
+    let captionIndex = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+        if (!outsideFence[i]) continue;
+        if (!lines[i].trim()) continue;
+        captionIndex = i;
+        break;
+    }
+
+    if (captionIndex < 0) {
+        return { bodyMd: trimmed, caption: '' };
+    }
+
+    const caption = lines[captionIndex].trim();
+    const bodyMd = lines
+        .filter((_, idx) => idx !== captionIndex)
+        .join('\n')
+        .trimEnd();
+    return { bodyMd, caption };
 }
 
 /**
@@ -268,7 +343,7 @@ function stripHideBlocks(src) {
  *
  * @param {string} markdown
  * @param {function(string): string} parseFn  - marked.parse などの Markdown→HTML 関数
- * @param {{ internalAbs?: string|null, externalBase?: string|null }} ctx  アセットルートコンテキスト
+ * @param {{ assetsBaseAbs?: string|null }} ctx  アセットルートコンテキスト
  * @returns {string} HTML
  */
 export function transformDSL(markdown, parseFn, ctx = {}) {

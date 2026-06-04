@@ -15,6 +15,7 @@ import * as http from "http";
 
 import { marked } from "marked";
 import { transformDSL } from "./dsl.mjs";
+import { resolveDslReferences } from "./references.mjs";
 import yaml from "js-yaml";
 import HTMLtoDOCX from "html-to-docx";
 
@@ -23,6 +24,9 @@ const MERMAID_JS = _require.resolve("mermaid/dist/mermaid.min.js");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = resolve(join(__dirname, "..", "..", ".."));
+const CONVERT_SCHEMA = join(__dirname, "..", "..", "..", "000_schema", "convert");
+const dslConfig = JSON.parse(readFileSync(join(CONVERT_SCHEMA, "dsl.json"), "utf-8"));
+const styleConfig = JSON.parse(readFileSync(join(CONVERT_SCHEMA, "style.json"), "utf-8"));
 
 // ── Chrome 検索 ────────────────────────────────────────────
 function findSystemChrome() {
@@ -49,19 +53,6 @@ function parseFrontmatter(markdown) {
     }
 }
 
-// ── Mermaidディレクティブ抽出 ─────────────────────────────────
-function parseMermaidDirectives(decodedCode) {
-    const directives = { width: null, height: null };
-    let code = decodedCode;
-    while (true) {
-        const m = code.match(/^%%\s*(width|height)\s*:\s*([\d.]+%?)%*\s*(?:\r?\n|$)/i);
-        if (!m) break;
-        directives[m[1].toLowerCase()] = m[2].trim();
-        code = code.slice(m[0].length);
-    }
-    return { code, ...directives };
-}
-
 // ── HTML エスケープ ──────────────────────────────────────────
 function escapeHtml(text) {
     return String(text ?? "")
@@ -72,13 +63,129 @@ function escapeHtml(text) {
         .replace(/'/g, "&#39;");
 }
 
-// ── コード図ディレクティブ解析 ───────────────────────────────
-function parseCodeFigureDirective(escapedCode) {
-    const m = escapedCode.match(/^%%\s*(?:fig|figure|caption):\s*(.*?)\s*%%\s*(?:\r?\n|$)/i);
-    if (!m) return { caption: null, code: escapedCode };
-    const caption = (m[1] ?? "").trim();
-    const code = escapedCode.slice(m[0].length);
-    return { caption: caption || null, code };
+function getOrderedHeadingLevels(headingCfg) {
+    return (headingCfg?.levels || ["h1", "h2", "h3"])
+        .map(l => parseInt(String(l).replace("h", ""), 10))
+        .filter(n => n >= 1 && n <= 3)
+        .sort((a, b) => a - b);
+}
+
+function applyHeadingNumbersToMarkdown(markdown, headingCfg) {
+    const orderedLevels = getOrderedHeadingLevels(headingCfg);
+    if (!headingCfg?.numbering || orderedLevels.length === 0) return markdown;
+
+    const counters = {};
+    for (const lv of orderedLevels) counters[lv] = 0;
+
+    const lines = String(markdown ?? "").split(/\r?\n/);
+    let inFence = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const t = lines[i].trim();
+        if (/^```/.test(t)) {
+            inFence = !inFence;
+            continue;
+        }
+        if (inFence) continue;
+
+        const m = lines[i].match(/^(#{1,3})\s+(.+)$/);
+        if (!m) continue;
+        const level = m[1].length;
+        if (!orderedLevels.includes(level)) continue;
+
+        counters[level]++;
+        for (const lv of orderedLevels) {
+            if (lv > level) counters[lv] = 0;
+        }
+
+        const idx = orderedLevels.indexOf(level);
+        const nums = orderedLevels.slice(0, idx + 1).map(lv => counters[lv]);
+        const body = m[2].replace(/^\d+(?:\.\d+)*\.\s+/, "");
+        lines[i] = `${m[1]} ${nums.join(".")}. ${body}`;
+    }
+
+    return lines.join("\n");
+}
+
+function applyCaptionNumbersToWordHtml(html, headingCfg, dslCfg) {
+    const orderedLevels = getOrderedHeadingLevels(headingCfg);
+    const numberingEnabled = !!headingCfg?.numbering && orderedLevels.length > 0;
+    if (!numberingEnabled) return html;
+
+    const topLevel = orderedLevels[0];
+    const headingCounters = {};
+    for (const lv of orderedLevels) headingCounters[lv] = 0;
+
+    let figureCounter = 0;
+    let tableCounter = 0;
+    let lastHeadingText = "";
+
+    const blockMap = new Map((dslCfg?.blocks || []).map(b => [b.name, b]));
+    const figPrefix = blockMap.get("figure")?.captionPrefix || "図";
+    const tblPrefix = blockMap.get("table")?.captionPrefix || "表";
+
+    const tokenRe = /<h([1-3])([^>]*)>([\s\S]*?)<\/h\1>|(<figure\b[^>]*>[\s\S]*?<figcaption>)([\s\S]*?)(<\/figcaption>[\s\S]*?<\/figure>)|(<p class="table-caption">)([\s\S]*?)(<\/p>)|(<table\b[^>]*>[\s\S]*?<\/table>)/gi;
+    let lastTableCaptionEnd = -1;
+
+    return html.replace(tokenRe, (...args) => {
+        const [all, hLv, hAttrs, hBody, figPre, figCap, figPost, tblPre, tblCap, tblPost, tableBlock, offsetRaw] = args;
+        const offset = typeof offsetRaw === "number" ? offsetRaw : -1;
+        if (hLv) {
+            const level = parseInt(hLv, 10);
+            if (!orderedLevels.includes(level)) return all;
+            headingCounters[level]++;
+            for (const lv of orderedLevels) {
+                if (lv > level) headingCounters[lv] = 0;
+            }
+            const headingPlain = String(hBody ?? "")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim()
+                .replace(/^\d+(?:\.\d+)*\.\s*/, "");
+            if (headingPlain) {
+                lastHeadingText = headingPlain;
+            }
+            if (level === topLevel) {
+                figureCounter = 0;
+                tableCounter = 0;
+            }
+            lastTableCaptionEnd = -1;
+            return all;
+        }
+
+        if (figPre) {
+            figureCounter++;
+            const sectionNo = headingCounters[topLevel] || 0;
+            const captionCore = String(figCap ?? "").trim().replace(/^(図|表)\s*\d+(?:\.\d+)?\s*/, "");
+            lastTableCaptionEnd = -1;
+            return `${figPre}${figPrefix}${sectionNo}.${figureCounter} ${captionCore}${figPost}`;
+        }
+
+        if (tblPre) {
+            tableCounter++;
+            const sectionNo = headingCounters[topLevel] || 0;
+            const captionCore = String(tblCap ?? "").trim().replace(/^(図|表)\s*\d+(?:\.\d+)?\s*/, "");
+            lastTableCaptionEnd = offset + all.length;
+            return `${tblPre}${tblPrefix}${sectionNo}.${tableCounter} ${captionCore}${tblPost}`;
+        }
+
+        if (tableBlock) {
+            const sectionNo = headingCounters[topLevel] || 0;
+            const between = lastTableCaptionEnd >= 0 && offset >= 0
+                ? html.slice(lastTableCaptionEnd, offset)
+                : "";
+            const pairedWithCaption = lastTableCaptionEnd >= 0 && /^\s*$/.test(between);
+            lastTableCaptionEnd = -1;
+
+            if (pairedWithCaption) return tableBlock;
+
+            tableCounter++;
+            const autoTitle = lastHeadingText || "表";
+            return `<p class="table-caption">${tblPrefix}${sectionNo}.${tableCounter} ${autoTitle}</p>${tableBlock}`;
+        }
+
+        return all;
+    });
 }
 
 // ── ローカル画像を data URI に変換（メモリ内で保持）─────────────────────
@@ -219,6 +326,23 @@ function parseMd(src) { return marked.parse(src); }
 // ── 変換 ───────────────────────────────────────────────────
 const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
+let resolvedBody = body;
+
+try {
+    const refResolved = resolveDslReferences(body, {
+        headingConfig: styleConfig.heading,
+        dslBlocks: dslConfig.blocks,
+    });
+    resolvedBody = refResolved.markdown;
+    if (refResolved.unknownRefs.length > 0) {
+        console.warn(`⚠ 未解決の参照ID: ${refResolved.unknownRefs.join(", ")}`);
+    }
+} catch (e) {
+    console.error(`参照解決エラー: ${e.message}`);
+    process.exit(1);
+}
+
+const numberedBody = applyHeadingNumbersToMarkdown(resolvedBody, styleConfig.heading);
 
 const docxDir = resolveOutputDir(meta, srcDir, "docxOutputDir");
 const docxFileName = resolveOutputFileName(meta, "docxFileName", `${baseName}.docx`);
@@ -227,17 +351,16 @@ const docxPath = join(docxDir, docxFileName);
 
 // アセットルート解決（フロントマターの assetsInternal を起点に相対パスを解決）
 const internalRaw = meta.assetsInternal ?? null;
-const internalAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : null;
-const externalBase = meta.assetsExternal ?? null;
-const assetsCtx = { internalAbs, externalBase };
+const assetsBaseAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : srcDir;
+const assetsCtx = { assetsBaseAbs };
 
 // ── DSL 変換 + Markdown → HTML ────────────────────────────
-let processedBodyHtml = transformDSL(body, parseMd, assetsCtx);
+let processedBodyHtml = transformDSL(numberedBody, parseMd, assetsCtx);
 
 // ── Mermaid ブロックをプレースホルダーに置換 ──────────────────
 const mermaidBlocks = [];
-const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>(?:\s*<p>([\s\S]*?)<\/p>)?/g;
-processedBodyHtml = processedBodyHtml.replace(mermaidBlockRegex, (_, code, caption) => {
+const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g;
+processedBodyHtml = processedBodyHtml.replace(mermaidBlockRegex, (_, code) => {
     const idx = mermaidBlocks.length;
     const decoded = code
         .replace(/&amp;/g, "&")
@@ -245,25 +368,8 @@ processedBodyHtml = processedBodyHtml.replace(mermaidBlockRegex, (_, code, capti
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
-    const { code: cleanCode, width } = parseMermaidDirectives(decoded);
-    mermaidBlocks.push({ idx, code: cleanCode, caption: (caption || "").trim(), width });
+    mermaidBlocks.push({ idx, code: decoded });
     return `__MERMAID_${idx}__`;
-});
-
-// ── コードブロックの図化（%%fig: キャプション%% ディレクティブ対応）─
-const codeBlockRegex = /<pre><code(?: class="([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g;
-processedBodyHtml = processedBodyHtml.replace(codeBlockRegex, (_, klass, escapedCode) => {
-    const classes = klass ? ` class="${klass}"` : "";
-    const isMermaid = typeof klass === "string" && /(?:^|\s)language-mermaid(?:\s|$)/.test(klass);
-    if (isMermaid) return `<pre><code${classes}>${escapedCode}</code></pre>`;
-
-    const { caption, code } = parseCodeFigureDirective(escapedCode);
-    if (!caption) return `<pre><code${classes}>${escapedCode}</code></pre>`;
-
-    return [
-        `<p style="text-align:center;font-weight:bold;">${escapeHtml(caption)}</p>`,
-        `<pre><code${classes}>${code}</code></pre>`,
-    ].join("");
 });
 
 // ── Mermaid → PNG（Puppeteer でレンダリング）────────────────
@@ -279,7 +385,7 @@ if (mermaidBlocks.length > 0) {
     const mermaidJs = readFileSync(MERMAID_JS, "utf-8");
     await page.setContent(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
 body { margin: 0; padding: 8px; background: white; }
-* { font-family: 'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif; }
+* { font-family: 'Yu Gothic UI', 'Yu Gothic', 'Hiragino Sans', 'Noto Sans JP', sans-serif; }
 </style></head><body></body></html>`);
 
     await page.evaluate(mermaidJs);
@@ -287,14 +393,14 @@ body { margin: 0; padding: 8px; background: white; }
         window.mermaid.initialize({
             startOnLoad: false,
             theme: "neutral",
-            fontFamily: "'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif",
+            fontFamily: "'Yu Gothic UI', 'Yu Gothic', 'Hiragino Sans', 'Noto Sans JP', sans-serif",
             flowchart: { htmlLabels: true },
             sequence: { useMaxWidth: false },
         });
     });
 
     for (const block of mermaidBlocks) {
-        const { idx, code, caption, width } = block;
+        const { idx, code } = block;
         try {
             const { svg } = await page.evaluate(async (c, i) => {
                 return await window.mermaid.render(`mw${i}`, c);
@@ -310,12 +416,7 @@ body { margin: 0; padding: 8px; background: white; }
             const pngBuffer = Buffer.isBuffer(pngData) ? pngData : Buffer.from(pngData);
             const base64 = pngBuffer.toString("base64");
 
-            // html-to-docx は CSS style.width を参照するため style 属性を使用
-            // HTML width="X%" は vNode.properties.attributes に入り無視される
-            const widthStyle = width ? `style="width:${width}"` : '';
-            const imgTag = caption
-                ? `<figure><img src="data:image/png;base64,${base64}" ${widthStyle} alt="${escapeHtml(caption)}"><figcaption>${caption}</figcaption></figure>`
-                : `<figure><img src="data:image/png;base64,${base64}" ${widthStyle} alt=""></figure>`;
+            const imgTag = `<img src="data:image/png;base64,${base64}" alt="">`;
 
             processedBodyHtml = processedBodyHtml.replace(`__MERMAID_${idx}__`, imgTag);
         } catch (e) {
@@ -332,19 +433,20 @@ body { margin: 0; padding: 8px; background: white; }
 }
 
 // ── 通常画像の相対パス → file:/// 絶対パスに解決 ──────────────
-if (internalAbs) {
-    processedBodyHtml = processedBodyHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
-        if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
-        const clean = src.replace(/^\.\//, "");
-        return `${pre}${pathToFileURL(resolve(internalAbs, clean)).href}${post}`;
-    });
-}
+processedBodyHtml = processedBodyHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
+    if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
+    const clean = src.replace(/^\.\//, "");
+    return `${pre}${pathToFileURL(resolve(assetsBaseAbs, clean)).href}${post}`;
+});
+
+// Word では CSS カウンターが効かないため、キャプション番号を本文へ埋め込む。
+processedBodyHtml = applyCaptionNumbersToWordHtml(processedBodyHtml, styleConfig.heading, dslConfig);
 
 // ── file:/// 画像を data URI に変換（メモリ内）─
 processedBodyHtml = resolveImagesToDataUri(processedBodyHtml);
 
 // ── タイトル ──────────────────────────────────────────────
-const title = meta.title || body.match(/^#\s+(.+)/m)?.[1] || baseName;
+const title = meta.title || resolvedBody.match(/^#\s+(.+)/m)?.[1] || baseName;
 
 // ── DOCX 用 HTML 組み立て ─────────────────────────────────
 // html-to-docx はクラスベース CSS を完全にはサポートしないため、
@@ -358,12 +460,25 @@ const docxHtml = `<!DOCTYPE html>
 </head>
 <body>
 ${processedBodyHtml
-        // figure: <figure><img...> または <figure><p><img...></p> を Word 互換段落に変換
-        .replace(/<figure[^>]*>\s*(?:<p>\s*)?<img([^>]*)>(?:\s*<\/p>)?\s*(<figcaption>([\s\S]*?)<\/figcaption>)?\s*<\/figure>/gi, (_, imgAttrs, _fc, caption) => {
-            const imgTag = `<img${imgAttrs}>`;
-            const imgP = `<p style="text-align:center;">${imgTag}</p>`;
-            const capP = caption ? `<p style="text-align:center;"><em>${caption.trim()}</em></p>` : '';
-            return imgP + capP;
+        // dsl.mjs の figure-body / mermaid-block ラッパーは Word では素の div に正規化
+        .replace(/<div class="figure-body"([^>]*)>/g, '<div$1>')
+        .replace(/<div class="mermaid-block"([^>]*)>/g, '<div$1>')
+        // figure 全体を Word 互換ブロックに変換（本文 + キャプション）
+        .replace(/<figure([^>]*)>([\s\S]*?)<\/figure>/gi, (_, figAttrs, inner) => {
+            const alignMatch = String(figAttrs || "").match(/text-align\s*:\s*(left|center|right)/i);
+            const align = alignMatch ? alignMatch[1].toLowerCase() : "center";
+
+            const captionMatch = inner.match(/<figcaption>([\s\S]*?)<\/figcaption>/i);
+            const caption = captionMatch ? captionMatch[1].trim() : "";
+            const body = inner.replace(/<figcaption>[\s\S]*?<\/figcaption>/i, "").trim();
+
+            const bodyBlock = body
+                ? `<div style="text-align:${align};">${body}</div>`
+                : "";
+            const capBlock = caption
+                ? `<p style="text-align:center;"><em>${caption}</em></p>`
+                : "";
+            return bodyBlock + capBlock;
         })
         // 画像: max-width:100%[;width:X][;height:Y] → width:X（または100%）に変換
         .replace(/<img([^>]*?)style="max-width:100%(?:;([^"]*))?"([^>]*?)>/gi, (_, before, rest, after) => {
@@ -385,11 +500,20 @@ ${processedBodyHtml
         // テーブル: <table> に border スタイルを強制付与
         .replace(/<table(?![^>]*border)[^>]*?>/gi, m => {
             if (m.includes('style=')) {
-                return m.replace(/style="([^"]*)"/, (s, s1) => `style="${s1};border:1px solid #000;border-collapse:collapse;"`);
+                return m.replace(/style="([^"]*)"/, (s, s1) => `style="${s1};border:0.6pt solid #999;border-collapse:collapse;margin-left:0;margin-right:auto;"`);
             } else {
-                return m.replace(/<table/, '<table style="border:1px solid #000;border-collapse:collapse;"');
+                return m.replace(/<table/, '<table style="border:0.6pt solid #999;border-collapse:collapse;margin-left:0;margin-right:auto;"');
             }
         })
+        // テーブルセル: 下paddingを除去し、全体を詰める
+        .replace(/<(td|th)([^>]*)>/gi, (_, tag, attrs) => {
+            if (/\bstyle="/i.test(attrs)) {
+                return `<${tag}${attrs.replace(/\bstyle="([^"]*)"/i, (_m, s) => ` style="${s};padding-top:0;padding-bottom:0;border:0.6pt solid #999;"`)}>`;
+            }
+            return `<${tag}${attrs} style="padding-top:0;padding-bottom:0;border:0.6pt solid #999;">`;
+        })
+        // table-caption は左寄せ
+        .replace(/<p class="table-caption">/g, '<p class="table-caption" style="text-align:left;margin:0 0 4pt 0;">')
         // DSL warningブロック: 左ボーダー+背景色
         .replace(/<div class="warning">/g, '<div style="color:#e67e00;background:#fff8f0;border-left:4px solid #e67e00;padding:6pt;">')
         // DSL centerブロック
@@ -420,7 +544,7 @@ const docxBuffer = await HTMLtoDOCX(docxHtmlForConvert, null, {
     pageNumber: false,
     decodeUnicode: true,
     lang: { bidi: "ar-SA", eastAsia: "ja-JP", val: "ja-JP" },
-    font: "Meiryo",
+    font: "Yu Gothic UI",
     fontSize: 22,     // 11pt（OOXML は half-points）
     margins: {
         top: 1134,    // 20mm

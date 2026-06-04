@@ -95,6 +95,11 @@ sample.docx
 
 このリポジトリでは、以下を対策しました。
 
+0. 図番号ルールを :::figure に統一
+- 画像・Mermaid・コードブロックの図番号付与はすべて :::figure で扱う
+- 旧方式（%%fig / %%caption など）の図化は廃止
+- Word 変換（build_word.mjs）も同仕様に対応済み
+
 1. Mermaid 画像のサイズ指定を安定化
 - `max-width` ではなく `width` を明示して `wp:extent` の欠損を防止
 
@@ -115,6 +120,67 @@ sample.docx
 
 7. 外部画像URLで変換全体が落ちる問題を回避
 - 取得失敗時に空srcにせず、透明1x1 PNGへ置換
+
+## 3-2. 処理フロー図（今回の実装）
+
+以下が `build_word.mjs` の全体フローです。
+
+```mermaid
+flowchart TD
+    A[Markdown 読み込み] --> B[Frontmatter 解析]
+    B --> C[DSL 変換 + marked で HTML化]
+    C --> D[Mermaid ブロック抽出]
+    D --> E[Puppeteer で SVG→PNG化]
+    E --> F[HTMLへ img data URI として差し戻し]
+    F --> G[file:///画像を base64 data URI 化]
+    G --> H[外部URL画像は透明1x1 PNGへ置換]
+    H --> I[html-to-docx が食べやすい HTML へ整形]
+    I --> J[data URI を一時HTTPサーバーで配信URLへ変換]
+    J --> K[HTMLtoDOCX で DOCX生成]
+    K --> L[JSZipで document.xml を後処理]
+    L --> M[sectPr を body末尾へ移動]
+    M --> N[.docx 書き込み]
+```
+
+### 3-3. 初心者向けにさらに噛み砕くと
+
+1. Markdown をそのまま Word にしているわけではない
+- まず HTML に変換してから Word にしている
+
+2. 画像は「そのまま渡す」と壊れやすい
+- 相対パス画像は `file:///...` にし、さらに base64 にする
+- 外部URL画像は失敗時に全体が落ちないよう安全な画像へ置換する
+
+3. なぜ一時HTTPサーバーを立てるのか
+- `html-to-docx` が `data:` URL を不安定に扱うケースがある
+- そこで `http://127.0.0.1:ポート/...` 形式で一時配信して確実に読ませる
+
+4. html-to-docx は強力だが万能ではない
+- そのため「入力前の整形（前処理）」と「出力後の修正（後処理）」を足している
+
+5. 後処理でやっていることは最小限
+- DOCXをZIPとして開き、`word/document.xml` の `w:sectPr` 位置だけ直して再圧縮
+- 全XMLを自前生成しているわけではない
+
+### 3-4. どこが html-to-docx 依存か（図）
+
+```text
+[前処理: 自前]
+  Markdown/DSL整形, Mermaid PNG化, 画像URL正規化, 一時HTTP化
+          │
+          ▼
+[中核変換: html-to-docx]
+  HTML -> DOCX (styles.xml / document.xml / rels / media 生成)
+          │
+          ▼
+[後処理: 自前]
+  JSZipで document.xml の sectPr 位置を仕様準拠に修正
+```
+
+目安としては、
+
+- 中核の Word 生成は `html-to-docx` が担当
+- その前後の安定化はこのプロジェクトの自前処理が担当
 
 ### 3-1. なぜこの対策が必要だったか（初心者向け補足）
 

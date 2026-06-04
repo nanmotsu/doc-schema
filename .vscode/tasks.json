@@ -239,6 +239,21 @@
             }
         },
         {
+            "label": "変換: Markdown逆変換（現在のファイル）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/build_from_word.mjs",
+                "${file}"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": true
+            }
+        },
+        {
             "label": "変換: スニペット生成",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
