@@ -1,5 +1,5 @@
 /**
- * 独自DSL変換モジュール（スキーマ駆動版）
+ * 独自DSL変換モジュール（スキーマ駆動版）。
  *
  * ブロック定義は 000_schema/convert/dsl.json から読み込む。
  * ハードコードを排除し、dsl.json を編集するだけで挙動を変更できる。
@@ -7,7 +7,7 @@
  * :::type
  * ...content...
  * :::
- * を HTML に変換する。content 部分は parseFn（marked.parse）で再帰処理。
+ * を HTML に変換する。content 部分は parseFn（例: marked.parse）で再帰処理する。
  */
 import { readFileSync } from "fs";
 import { join, dirname, resolve } from "path";
@@ -17,12 +17,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const dslConfig = JSON.parse(
     readFileSync(join(__dirname, "..", "..", "..", "000_schema", "convert", "dsl.json"), "utf-8")
 );
-/** name → block定義 のマップ */
+/** name -> block定義 のマップ */
 const blockMap = new Map(dslConfig.blocks.map(b => [b.name, b]));
 
 /**
  * 開きタグの属性文字列（例: "width=80% height=200px"）を
- * { width: '80%', height: '200px' } なマップにパースする
+ * { width: '80%', height: '200px' } のマップにパースする
  * @param {string} attrStr
  * @returns {Record<string, string>}
  */
@@ -70,7 +70,7 @@ function splitSegments(src) {
  */
 function buildBlock(type, attrs, content, parseFn, ctx = {}) {
     const block = blockMap.get(type);
-    // 未知のブロックはそのままdiv変換（フォールバック）
+    // 未知のブロックはそのまま div 変換（フォールバック）
     if (!block) return `<div class="${type}">\n${parseFn(content.trimEnd())}</div>`;
 
     const trimmed = content.trimEnd();
@@ -82,7 +82,7 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
 
     // captionPosition="bottom": figure（画像 + 下キャプション）
     if (block.captionPosition === "bottom") {
-        // width / height: 属性指定 → スキーマ defaults → 未指定
+        // width / height: 属性指定 -> スキーマ defaults -> 未指定
         const defaults = block.defaults ?? {};
         const width = attrs.width ?? defaults.width ?? null;
         const height = attrs.height ?? defaults.height ?? null;
@@ -101,7 +101,7 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         let effectiveBodyMd = bodyMd || "";
 
         // Mermaid は build.mjs 側の高さ縮小ロジックを使うため、
-        // figure属性の height をコード内ディレクティブへ橋渡しする。
+        // figure 属性の height をコード側ディレクティブへ橋渡しする。
         if (height && codeLang === "mermaid") {
             const hasHeightDirective = /^```\s*mermaid\s*\r?\n\s*%%\s*height\s*:/i.test(effectiveBodyMd.trimStart());
             if (!hasHeightDirective) {
@@ -112,7 +112,7 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
             }
         }
 
-        const bodyStyle = buildFigureBodyStyle(width, (codeLang === "mermaid" ? null : height));
+        const bodyStyle = buildFigureBodyStyle(width, (codeLang === "mermaid" ? null : height), align);
         let bodyHtml = parseFn(effectiveBodyMd).trim();
 
         if (hasImage) {
@@ -171,14 +171,14 @@ function buildBlock(type, attrs, content, parseFn, ctx = {}) {
         ].filter(Boolean).join('\n');
     }
 
-    // デフォルト: 通常ブロック（attrs.width でインライン幅指定可能）
+    // デフォルト通常ブロック。attrs.width でインライン幅指定可能。
     const inlineStyle = attrs.width ? ` style="max-width:${attrs.width}"` : '';
     return `<${block.element} class="${block.class}"${inlineStyle}>\n${parseFn(trimmed)}</${block.element}>`;
 }
 
 /**
- * width / height 値から img 用の style 文字列を組み立てる
- * max-width:100% は常に付与して画面幅オーバーを防ぐ
+ * width / height 値から img 用の style 文字列を組み立てる。
+ * max-width:100% は常に付与して画面幅オーバーを防ぐ。
  */
 function buildImageSizeStyle(width, height) {
     const parts = ['max-width:100%'];
@@ -190,13 +190,22 @@ function buildImageSizeStyle(width, height) {
 /**
  * 図本体（画像/コード/Mermaid 共通）へ適用するサイズ指定スタイルを組み立てる。
  */
-function buildFigureBodyStyle(width, height) {
+function buildFigureBodyStyle(width, height, align) {
     const parts = [];
     if (width) parts.push(`width:${width}`);
     if (height && height !== 'auto') {
         parts.push(`max-height:${height}`);
     }
-    if (parts.length > 0) parts.push('margin:0 auto');
+    if (parts.length > 0) {
+        const a = String(align || '').toLowerCase();
+        if (a === 'left') {
+            parts.push('margin:0 auto 0 0');
+        } else if (a === 'right') {
+            parts.push('margin:0 0 0 auto');
+        } else {
+            parts.push('margin:0 auto');
+        }
+    }
     return parts.join(';');
 }
 
@@ -264,7 +273,7 @@ function appendStyleToFirstTable(tableHtml, styleChunk) {
 }
 
 /**
- * 列幅比率文字列を列幅配列へ変換する。
+ * 列幅比率文字列を幅パーセント列へ変換する。
  * 例: "2,3,1" -> ["33.3333%","50%","16.6667%"]
  */
 function parseColumnWidths(raw) {
@@ -288,7 +297,7 @@ function parseColumnWidths(raw) {
 /**
  * 先頭の <table> タグ直後へ colgroup を挿入する。
  * colgroup を付与する場合は table-layout: fixed も同時に設定し、
- * 列幅比率がヘッダーのコンテンツ幅に引っ張られないようにする。
+ * 列幅比率がセル内容に引っ張られないようにする。
  */
 function injectColgroupToFirstTable(tableHtml, widths) {
     if (!Array.isArray(widths) || widths.length === 0) return tableHtml;
@@ -307,7 +316,7 @@ function injectColgroupToFirstTable(tableHtml, widths) {
 }
 
 /**
- * :::hide ... ::: ブロックをソースから除去する（ネスト対応）
+ * :::hide ... ::: ブロックをソースから除去する（ネスト対応）。
  *
  * 行単位でネスト深度を追跡するため、内部に他の ::: ブロックが
  * あっても正しく除去される。
@@ -322,12 +331,12 @@ function stripHideBlocks(src) {
     for (const line of lines) {
         if (depth === 0) {
             if (/^:::hide(?:\s|$)/.test(line)) {
-                depth = 1; // hide ブロック開始、この行は出力しない
+                depth = 1; // hide ブロック開始。この行は出力しない
             } else {
                 out.push(line);
             }
         } else {
-            // hide ブロック内：すべて出力しない
+            // hide ブロック内はすべて出力しない
             if (/^:::\w/.test(line)) {
                 depth++; // 任意のネスト開きタグ
             } else if (/^:::(?!\w)/.test(line)) {
@@ -355,3 +364,4 @@ export function transformDSL(markdown, parseFn, ctx = {}) {
         })
         .join('\n');
 }
+

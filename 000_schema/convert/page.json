@@ -8,5 +8,6 @@
         "bottom": "15mm",
         "left": "15mm"
     },
-    "paragraphIndent": true, "tocDepth": 3, "assetsRoot": "997_作成元データ"
+    "paragraphIndent": true,
+    "tocDepth": 3
 }

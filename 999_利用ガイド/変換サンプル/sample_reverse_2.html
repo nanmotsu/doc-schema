@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1\. 螟画鋤讖溯・繧ｵ繝ｳ繝励Ν</title>
+  <style>
+:root {
+    --h1-size:    28px;
+    --h2-size:    24px;
+    --h3-size:    20px;
+    --body-size:  16px;
+    --small-size: 13px;
+    --font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    --body-line-height:    1.3;
+    --heading-line-height: 1.3;
+    --color-text:    #333333;
+    --color-heading: #111111;
+    --color-heading-border: #2c3e50;
+    --color-subtle:  #555555;
+    --color-link:    #0066cc;
+    --color-code:    #c7254e;
+    --color-code-bg: #f9f2f4;
+    --color-pre-bg:  #f6f8fa;
+    --color-border:  #bdc3c7;
+    --color-th-bg:   #f0f0f0;
+    --table-cell-border: 1px solid #bdc3c7;
+    --table-cell-padding: 0.45em 0.8em;
+    --table-margin:       0 0;
+    --gap-paragraph:   0.75em;
+    --gap-heading-top: 2em;
+    --gap-heading-bot: 0.5em;
+    --toc-padding:      0.1em 0;
+    --toc-item-padding: 0 0;
+    --title-size:       36px;
+    --subtitle-size:    18px;
+    --cover-max-height: 360px;
+    --page-content-height: calc(297mm - 20mm - 15mm);
+}
+@page {
+    size: A4 portrait;
+    margin: 20mm 10mm 15mm 15mm;
+}
+body { counter-reset: h1-counter; }
+h1 { counter-reset: h2-counter figure-counter table-counter; }
+h2 { counter-reset: h3-counter; }
+h1::before { counter-increment: h1-counter; content: counter(h1-counter) ". "; }
+h2::before { counter-increment: h2-counter; content: counter(h1-counter) "." counter(h2-counter) ". "; }
+h3::before { counter-increment: h3-counter; content: counter(h1-counter) "." counter(h2-counter) "." counter(h3-counter) ". "; }
+
+.warning {
+    color: #e67e00;
+    background: #fff8f0;
+    border-left: 4px solid #e67e00;
+    padding: 0.2em 0.5em;
+    margin: 0.5em 0;
+    border-radius: 0 4px 4px 0;
+    max-width: 100%;
+}
+.center {
+    text-align: center;
+}
+.right {
+    text-align: right;
+}
+.large {
+    font-size: 24px;
+}
+.red {
+    color: #cc0000;
+}
+.page-break {
+    page-break-before: always;
+    break-before: page;
+}
+.figure {
+    margin: 0 0;
+    text-align: center;
+}
+figure.figure figcaption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.table-wrapper {
+    margin: 0 0;
+}
+.table-wrapper .table-caption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+    text-align: center;
+}
+
+figure.figure figcaption::before {
+    counter-increment: figure-counter;
+    content: "図" counter(h1-counter) "." counter(figure-counter) " ";
+    font-weight: bold;
+}
+.table-wrapper .table-caption::before {
+    counter-increment: table-counter;
+    content: "表" counter(h1-counter) "." counter(table-counter) " ";
+    font-weight: bold;
+}
+
+/* ============================================================
+   Markdown 文書 スタイルシート（構造定義のみ）
+   CSS変数・DSLクラス・カウンター・@page は build.mjs がスキーマから生成する。
+   ============================================================ */
+
+/* === リセット ===================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* === ベース ======================================================= */
+body {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+    font-size: var(--body-size, 16px);
+    line-height: var(--body-line-height, 1.8);
+    color: var(--color-text, #333);
+    padding: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* === 見出し ======================================================= */
+h1,
+h2,
+h3,
+h4 {
+    margin-top: var(--gap-heading-top, 0.8em);
+    margin-bottom: var(--gap-heading-bot, 0.5em);
+    line-height: var(--heading-line-height, 1.3);
+    font-weight: bold;
+}
+
+h1 {
+    font-size: var(--h1-size, 28px);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.25em;
+}
+
+h2 {
+    font-size: var(--h2-size, 24px);
+    border-bottom: 1px solid var(--color-border, #bdc3c7);
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: var(--h3-size, 20px);
+}
+
+h4 {
+    font-size: var(--body-size, 16px);
+}
+
+/* === 本文要素 ===================================================== */
+p {
+    margin: var(--gap-paragraph) 0;
+}
+
+/* フロントマター paragraphIndent が有効なときのみ本文段落を字下げ */
+body.indent-body>p {
+    text-indent: 1em;
+}
+
+/* DSLブロック内・テーブルセル内の <p> はマージンを消す */
+.warning p,
+.center p,
+.right p,
+.large p,
+.red p,
+td p,
+th p {
+    margin: 0;
+}
+
+/* figure 内の <p> — marked が ![alt](src) を <p><img> にラップするため個別処理 */
+/* margin を消し、line-height: 0 でインライン画像のベースライン余白も除去する   */
+.figure p {
+    margin: 0;
+    line-height: 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+    margin: 0.5em 0;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+blockquote {
+    border-left: 4px solid var(--color-border);
+    margin: 0.5em 0;
+    padding: 0 1em;
+    color: var(--color-subtle);
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 2em 0;
+}
+
+a {
+    color: var(--color-link, #2980b9);
+}
+
+/* === コード ======================================================= */
+code {
+    font-family: 'Consolas', 'Noto Sans Mono', 'Courier New', monospace;
+    background: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+
+pre {
+    background: var(--color-pre-bg, #f6f8fa);
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    margin: 1em 0;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+
+/* === 画像 ========================================================= */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* === SVG（Mermaid等）============================================= */
+figure.figure svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* SVG テキストのフォント指定（htmlLabels:false 時） */
+figure.figure svg text {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+}
+
+/* コードを図として扱う場合は本文を左寄せにする */
+figure.code-figure {
+    text-align: left;
+}
+
+figure.code-figure pre {
+    margin: 0;
+}
+
+figure.code-figure figcaption {
+    text-align: center;
+}
+
+/* === テーブル ===================================================== */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--table-margin, 1.5em 0);
+}
+
+th,
+td {
+    border: var(--table-cell-border, 1px solid #bdc3c7);
+    padding: var(--table-cell-padding, 0.45em 0.8em);
+    text-align: left;
+}
+
+th {
+    background: var(--color-th-bg);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* colRatio / colWidths 指定時: table-layout: fixed に合わせてヘッダーも折り返し許可 */
+table.col-fixed th {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ============================================================
+   表題ページ
+   ============================================================ */
+.title-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--page-content-height, 277mm);
+    text-align: center;
+    padding: 40px;
+    box-sizing: border-box;
+    break-after: page;
+    page-break-after: always;
+}
+
+.title-page .doc-title {
+    font-size: var(--title-size, 36px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.title-page .doc-subtitle {
+    font-size: var(--subtitle-size, 18px);
+    color: var(--color-subtle, #555);
+    margin-top: 0.6em;
+    margin-bottom: 0;
+}
+
+.title-page .cover-image {
+    display: block;
+    max-height: var(--cover-max-height, 360px);
+    max-width: 100%;
+    margin: 1.5em auto 0;
+    object-fit: cover;
+}
+
+/* ============================================================
+   改訂履歴ページ
+   ============================================================ */
+.revision-history {
+    break-after: page;
+    page-break-after: always;
+    padding: 2em 0;
+}
+
+.revision-history-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.2em;
+    margin: 0 0 1em;
+}
+
+.revision-history .col-version {
+    width: 8%;
+    white-space: nowrap;
+}
+
+.revision-history .col-date {
+    width: 18%;
+    white-space: nowrap;
+}
+
+.revision-history .col-author {
+    width: 14%;
+    white-space: nowrap;
+}
+
+.revision-history .col-description {
+    width: 60%;
+}
+
+/* ============================================================
+   目次
+   ============================================================ */
+.toc {
+    break-after: page;
+    page-break-after: always;
+    padding: var(--toc-padding, 2em 0);
+}
+
+.toc-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0 0 1em;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.toc li {
+    padding: var(--toc-item-padding, 0.3em 0);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.toc a {
+    color: var(--color-text, #333);
+    text-decoration: none;
+}
+
+.toc a:hover {
+    color: var(--color-link, #0066cc);
+    text-decoration: underline;
+}
+
+/* ============================================================
+   画面表示（HTML）
+   ============================================================ */
+@media screen {
+
+    /* ページ区切り DSL の視覚的インジケーター（PDF では非表示） */
+    .page-break {
+        margin: 2em 0;
+        border-top: 1px solid #aaa;
+    }
+}
+
+/* ============================================================
+   印刷 / PDF
+   ============================================================ */
+@media print {
+    body {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    h1,
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+
+    figure,
+    .warning {
+        page-break-inside: avoid;
+    }
+
+    /* 大きい表は分割を許可し、表番号だけ取り残されるのを防ぐ */
+    .table-wrapper .table-caption {
+        break-after: avoid;
+        page-break-after: avoid;
+        margin-bottom: 0.3em;
+    }
+
+    .table-wrapper table {
+        break-before: avoid;
+        page-break-before: avoid;
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    .table-wrapper thead {
+        display: table-header-group;
+    }
+
+    .table-wrapper tr,
+    .table-wrapper th,
+    .table-wrapper td {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-x: visible;
+    }
+}
+  </style>
+</head>
+<body class="indent-body">
+
+
+<nav class="toc">
+  <p class="toc-title">逶ｮ谺｡</p>
+  <ul>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-1">1. 1\. 螟画鋤讖溯・繧ｵ繝ｳ繝励Ν</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-2">2. 2\. 隕句・縺励・閾ｪ蜍慕分蜿ｷ</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-3">2.1. 2.1. 繧ｵ繝悶そ繧ｯ繧ｷ繝ｧ繝ｳ</a></li>
+    <li class="toc-level-3" style="padding-left:3em"><a href="#toc-4">2.1.1. 2.1.1. 縺輔ｉ縺ｫ豺ｱ縺・そ繧ｯ繧ｷ繝ｧ繝ｳ</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-5">3. 3\. 蝓ｺ譛ｬ繝・く繧ｹ繝郁ｦ∫ｴ</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-6">3.1. 3.1. 繝ｪ繧ｹ繝・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-7">3.2. 3.2. 逡ｪ蜿ｷ莉倥″繝ｪ繧ｹ繝・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-8">3.3. 3.3. 蠑慕畑</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-9">3.4. 3.4. 蛹ｺ蛻・ｊ邱・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-10">3.5. 3.5. 繝ｪ繝ｳ繧ｯ縺ｨ蠑ｷ隱ｿ</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-11">4. 4\. 繧ｳ繝ｼ繝峨ヶ繝ｭ繝・け</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-12">5. 5\. Mermaid繧ｰ繝ｩ繝・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-13">5.1. 5.1. 繝輔Ο繝ｼ繝√Ε繝ｼ繝茨ｼ亥峙逡ｪ蜿ｷ繝ｻ繧ｭ繝｣繝励す繝ｧ繝ｳ莉倥″・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-14">5.2. 5.2. 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ・亥峙逡ｪ蜿ｷ繝ｻ繧ｭ繝｣繝励す繝ｧ繝ｳ莉倥″・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-15">5.3. 5.3. 繧ｭ繝｣繝励す繝ｧ繝ｳ縺ｪ縺暦ｼ亥峙逡ｪ蜿ｷ縺ｮ縺ｿ・・</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-16">6. 6\. 繝・・繝悶Ν・域ｨ呎ｺ邦arkdown・・</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-17">7. 7\. 蝗ｳ陦ｨ蜿ら・・・d + ref・・</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-18">8. 8\. 迢ｬ閾ｪDSL 繝悶Ο繝・け</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-19">8.1. 8.1. warning・郁ｭｦ蜻奇ｼ・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-20">8.2. 8.2. center・井ｸｭ螟ｮ謠・∴・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-21">8.3. 8.3. right・亥承蟇・○・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-22">8.4. 8.4. large・亥､ｧ縺阪＞譁・ｭ暦ｼ・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-23">8.5. 8.5. red・郁ｵ､譁・ｭ暦ｼ・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-24">8.6. 8.6. figure・亥峙 窶・internal襍ｷ轤ｹ繝ｻ繝・ヵ繧ｩ繝ｫ繝医し繧､繧ｺ・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-25">8.7. 8.7. figure・亥峙 窶・internal襍ｷ轤ｹ繝ｻ蟷・欠螳夲ｼ・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-26">8.8. 8.8. figure・亥峙 窶・蝓ｺ貅悶ヱ繧ｹ譛ｪ謖・ｮ壽凾・・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-27">8.9. 8.9. figure・亥峙 窶・驟咲ｽｮ謖・ｮ夲ｼ・</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-28">8.10. 8.10. table・医く繝｣繝励す繝ｧ繝ｳ莉倥″陦ｨ・・</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-29">9. 9\. 繝壹・繧ｸ蛹ｺ蛻・ｊ</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-30">10. 10\. 繝壹・繧ｸ蛹ｺ蛻・ｊ蠕後・繝壹・繧ｸ</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-31">10.1. 10.1. 縺ｾ縺ｨ繧・</a></li>
+  </ul>
+</nav>
+<p>﻿<!-- Generated from sample.docx by build_from_word.mjs --></p>
+<h1 id="toc-1">1. 螟画鋤讖溯・繧ｵ繝ｳ繝励Ν</h1>
+<p>譛ｬ繝峨く繝･繝｡繝ｳ繝医・ <strong>Markdown 竊・HTML / PDF 螟画鋤讖溯・</strong> 縺ｮ蜈ｨ隕∫ｴ繧偵・縺ｨ縺､縺ｮ繝輔ぃ繧､繝ｫ縺ｧ遒ｺ隱阪☆繧九◆繧√・繧ｵ繝ｳ繝励Ν縺ｧ縺吶・</p>
+<h1 id="toc-2">2. 隕句・縺励・閾ｪ蜍慕分蜿ｷ</h1>
+<p>隕句・縺励↓縺ｯ閾ｪ蜍輔〒逡ｪ蜿ｷ縺御ｻ倅ｸ弱＆繧後∪縺呻ｼ・tyle.json 縺ｮ heading.numbering 縺ｧ蛻ｶ蠕｡・峨・</p>
+<h2 id="toc-3">2.1. 繧ｵ繝悶そ繧ｯ繧ｷ繝ｧ繝ｳ</h2>
+<h3 id="toc-4">2.1.1. 縺輔ｉ縺ｫ豺ｱ縺・そ繧ｯ繧ｷ繝ｧ繝ｳ</h3>
+<p>譛ｬ譁・ユ繧ｭ繧ｹ繝医〒縺吶Ｊnline code 繧ゅ％縺ｮ繧医≧縺ｫ陦ｨ遉ｺ縺輔ｌ縺ｾ縺吶・
+蜊倅ｸ謾ｹ陦後・繧ｹ繝壹・繧ｹ謇ｱ縺・↓縺ｪ繧翫∪縺呻ｼ域ｮｵ關ｽ縺ｯ螟峨ｏ繧峨↑縺・ｼ峨・縺薙・陦後・荳翫・陦後→蜷後§谿ｵ關ｽ縺ｧ縺吶・
+陦梧忰縺ｫ \ 縺ｧ謾ｹ陦後〒縺阪∪縺吶・ 
+縺薙％縺九ｉ譁ｰ縺励＞陦後↓縺ｪ繧翫∪縺吶・
+陦梧忰縺ｫ蜊願ｧ偵せ繝壹・繧ｹ2縺､縺ｧ繧ょ酔縺伜柑譫懊〒縺吶・ 
+縺薙％縺九ｉ譁ｰ縺励＞陦後↓縺ｪ繧翫∪縺吶・
+遨ｺ陦後ｒ謖溘・縺ｨ谿ｵ關ｽ縺悟・縺九ｌ縺ｾ縺吶・</p>
+<h1 id="toc-5">3. 蝓ｺ譛ｬ繝・く繧ｹ繝郁ｦ∫ｴ</h1>
+<h2 id="toc-6">3.1. 繝ｪ繧ｹ繝・</h2>
+<ul>
+<li>邂・擅譖ｸ縺・</li>
+<li>邂・擅譖ｸ縺・<ul>
+<li>繝阪せ繝・</li>
+<li>繝阪せ繝・</li>
+</ul>
+</li>
+<li>邂・擅譖ｸ縺・</li>
+</ul>
+<h2 id="toc-7">3.2. 逡ｪ蜿ｷ莉倥″繝ｪ繧ｹ繝・</h2>
+<ol>
+<li>謇矩・</li>
+<li>謇矩・</li>
+<li>謇矩・</li>
+</ol>
+<h2 id="toc-8">3.3. 蠑慕畑</h2>
+<p>縺薙ｌ縺ｯ蠑慕畑繝・く繧ｹ繝医〒縺吶・隍・焚陦後↓縺ｾ縺溘′繧九％縺ｨ繧ゅ〒縺阪∪縺吶・</p>
+<h2 id="toc-9">3.4. 蛹ｺ蛻・ｊ邱・</h2>
+<h2 id="toc-10">3.5. 繝ｪ繝ｳ繧ｯ縺ｨ蠑ｷ隱ｿ</h2>
+<p>**螟ｪ蟄励ユ繧ｭ繧ｹ繝・*縲∵万菴薙ユ繧ｭ繧ｹ繝医∵遠縺｡豸医＠邱・</p>
+<h1 id="toc-11">4. 繧ｳ繝ｼ繝峨ヶ繝ｭ繝・け</h1>
+<p>繧､繝ｳ繝ｩ繧､繝ｳ: const x = 42;</p>
+<p>繝悶Ο繝・け:</p>
+<p>// JavaScript縺ｮ繧ｵ繝ｳ繝励Ν</p>
+<p>function greet(name) {</p>
+<p>return `Hello, ${name}!`;</p>
+<p>}</p>
+<p>console.log(greet(&quot;World&quot;));</p>
+<p># 繧ｷ繧ｧ繝ｫ繧ｳ繝槭Φ繝・
+node .tools/scripts/convert/build.mjs input.md</p>
+<h1 id="toc-12">5. Mermaid繧ｰ繝ｩ繝・</h1>
+<p>蝗ｳ逡ｪ蜿ｷ繝ｻ繧ｭ繝｣繝励す繝ｧ繝ｳ繧剃ｻ倥￠繧句ｴ蜷医・縲・::figure 縺ｧ Mermaid 繝悶Ο繝・け蜈ｨ菴薙ｒ蝗ｲ縺ｿ縺ｾ縺吶・</p>
+<h2 id="toc-13">5.1. 繝輔Ο繝ｼ繝√Ε繝ｼ繝茨ｼ亥峙逡ｪ蜿ｷ繝ｻ繧ｭ繝｣繝励す繝ｧ繝ｳ莉倥″・・</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_001.png" alt=""></p>
+<p>蝗ｳ5.1 Markdown螟画鋤繝代う繝励Λ繧､繝ｳ縺ｮ繝輔Ο繝ｼ繝√Ε繝ｼ繝・</p>
+<h2 id="toc-14">5.2. 繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ・亥峙逡ｪ蜿ｷ繝ｻ繧ｭ繝｣繝励す繝ｧ繝ｳ莉倥″・・</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_002.png" alt=""></p>
+<p>蝗ｳ5.2 繝ｭ繧ｰ繧､繝ｳ蜃ｦ逅・・繧ｷ繝ｼ繧ｱ繝ｳ繧ｹ蝗ｳ</p>
+<h2 id="toc-15">5.3. 繧ｭ繝｣繝励す繝ｧ繝ｳ縺ｪ縺暦ｼ亥峙逡ｪ蜿ｷ縺ｮ縺ｿ・・</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_003.png" alt=""></p>
+<h1 id="toc-16">6. 繝・・繝悶Ν・域ｨ呎ｺ邦arkdown・・</h1>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>蜷榊燕</th>
+<th>蠖ｹ蜑ｲ</th>
+<th>繧ｹ繝・・繧ｿ繧ｹ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>001</td>
+<td>螻ｱ逕ｰ螟ｪ驛・</td>
+<td>邂｡逅・・</td>
+<td>譛牙柑</td>
+</tr>
+<tr>
+<td>002</td>
+<td>驤ｴ譛ｨ闃ｱ蟄・</td>
+<td>荳闊ｬ繝ｦ繝ｼ繧ｶ繝ｼ</td>
+<td>譛牙柑</td>
+</tr>
+<tr>
+<td>003</td>
+<td>逕ｰ荳ｭ荳驛・</td>
+<td>髢ｲ隕ｧ閠・</td>
+<td>辟｡蜉ｹ</td>
+</tr>
+</tbody></table>
+<h1 id="toc-17">7. 蝗ｳ陦ｨ蜿ら・・・d + ref・・</h1>
+<p>譛ｬ譁・ｸｭ縺ｧ蝗ｳ陦ｨ逡ｪ蜿ｷ繧貞崋螳壽枚蟄励〒譖ｸ縺九★縺ｫ縲〉ef險俶ｳ輔〒蜿ら・縺ｧ縺阪∪縺吶・
+陦ｨ縺ｯ 陦ｨ7.1 縺ｫ遉ｺ縺咎壹ｊ縺ｧ縺吶ょ峙縺ｯ 蝗ｳ7.1 縺ｮ騾壹ｊ縺ｧ縺吶・
+蜿ら・ID莉倥″繝ｦ繝ｼ繧ｶ繝ｼ荳隕ｧ</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>蜷榊燕</th>
+<th>蛹ｺ蛻・</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>101</td>
+<td>菴占陸闃ｱ蟄・</td>
+<td>A</td>
+</tr>
+<tr>
+<td>102</td>
+<td>鬮俶ｩ区ｬ｡驛・</td>
+<td>B</td>
+</tr>
+</tbody></table>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_004.png" alt=""></p>
+<p>蝗ｳ5.3 蜿ら・ID莉倥″縺ｮ讎りｦ∝峙</p>
+<h1 id="toc-18">8. 迢ｬ閾ｪDSL 繝悶Ο繝・け</h1>
+<p>莉･荳九・ 000_schema/convert/dsl.json 縺ｧ螳夂ｾｩ縺輔ｌ縺溘ヶ繝ｭ繝・け縺ｧ縺吶・</p>
+<h2 id="toc-19">8.1. warning・郁ｭｦ蜻奇ｼ・</h2>
+<p>繝・ヵ繧ｩ繝ｫ繝茨ｼ・tyle.json 縺ｮ warningMaxWidth 縺碁←逕ｨ縺輔ｌ繧具ｼ・</p>
+<p>縺薙・謫堺ｽ懊・蜈・↓謌ｻ縺帙∪縺帙ｓ縲ょｮ溯｡悟燕縺ｫ蠢・★繝舌ャ繧ｯ繧｢繝・・繧貞叙蠕励＠縺ｦ縺上□縺輔＞縲・
+蟷・ｒ謖・ｮ壹☆繧句ｴ蜷医・ width= 螻樊ｧ縺ｧ荳頑嶌縺榊庄閭ｽ縲Ｔtyle.json 縺ｮ險ｭ螳壼､:</p>
+<ul>
+<li>warningMaxWidth 窶・譛螟ｧ蟷・ｼ医ョ繝輔か繝ｫ繝・100%・・-   colors.warningBg 窶・閭梧勹濶ｲ</li>
+<li>colors.warningBorder 窶・蟾ｦ繝懊・繝繝ｼ濶ｲ</li>
+<li>spacing 邉ｻ縺ｯ dsl.json 縺ｮ padding / margin 縺ｧ逶ｴ謗･隱ｿ謨ｴ</li>
+</ul>
+<p>蟷・60% 謖・ｮ・</p>
+<p>蟷・ｒ 60% 縺ｫ邨槭▲縺毆arning繝悶Ο繝・け縺ｧ縺吶・
+蟷・40em 謖・ｮ・</p>
+<p>蝗ｺ螳壼ｹ・ｼ・0em・峨・warning繝悶Ο繝・け縺ｧ縺吶ら洒縺・ユ繧ｭ繧ｹ繝医〒繧よ棧縺悟ｺ・′繧翫☆縺弱∪縺帙ｓ縲・</p>
+<h2 id="toc-20">8.2. center・井ｸｭ螟ｮ謠・∴・・</h2>
+<p>*<em>荳ｭ螟ｮ縺ｫ驟咲ｽｮ縺輔ｌ縺溘ユ繧ｭ繧ｹ繝医〒縺・</em></p>
+<h2 id="toc-21">8.3. right・亥承蟇・○・・</h2>
+<p>菴懈・譌･・・026蟷ｴ5譛・7譌･</p>
+<h2 id="toc-22">8.4. large・亥､ｧ縺阪＞譁・ｭ暦ｼ・</h2>
+<p>驥崎ｦ√↑縺顔衍繧峨○</p>
+<h2 id="toc-23">8.5. red・郁ｵ､譁・ｭ暦ｼ・</h2>
+<p>*<em>繧ｨ繝ｩ繝ｼ・・</em> 謗･邯壹′繧ｿ繧､繝繧｢繧ｦ繝医＠縺ｾ縺励◆縲・</p>
+<h2 id="toc-24">8.6. figure・亥峙 窶・internal襍ｷ轤ｹ繝ｻ繝・ヵ繧ｩ繝ｫ繝医し繧､繧ｺ・・</h2>
+<p>assetsBase 繧呈欠螳壹☆繧九→縲√◎縺ｮ繝輔か繝ｫ繝繧定ｵｷ轤ｹ縺ｫ逶ｸ蟇ｾ繝代せ繧定ｧ｣豎ｺ縺励∪縺吶・
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_005.png" alt=""></p>
+<p>蝗ｳ6.1 繧ｷ繧ｹ繝・Β讒区・縺ｮ讎りｦ∝峙</p>
+<h2 id="toc-25">8.7. figure・亥峙 窶・internal襍ｷ轤ｹ繝ｻ蟷・欠螳夲ｼ・</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_006.png" alt=""></p>
+<p>蝗ｳ6.2 蟷・ｒ60%縺ｫ謖・ｮ壹＠縺溷峙</p>
+<p>繝斐け繧ｻ繝ｫ謖・ｮ壹ｂ蜿ｯ閭ｽ縺ｧ縺吶・
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_007.png" alt=""></p>
+<p>蝗ｳ6.3 400ﾃ・00px 謖・ｮ壹・蝗ｳ</p>
+<h2 id="toc-26">8.8. figure・亥峙 窶・蝓ｺ貅悶ヱ繧ｹ譛ｪ謖・ｮ壽凾・・</h2>
+<p>assetsBase 繧堤怐逡･縺励◆蝣ｴ蜷医・縲∝､画鋤縺吶ｋ Markdown 繝輔ぃ繧､繝ｫ縺ｮ驟咲ｽｮ繝輔か繝ｫ繝繧定ｵｷ轤ｹ縺ｫ逶ｸ蟇ｾ繝代せ繧定ｧ｣豎ｺ縺励∪縺吶・</p>
+<h2 id="toc-27">8.9. figure・亥峙 窶・驟咲ｽｮ謖・ｮ夲ｼ・</h2>
+<p>align= 螻樊ｧ縺ｧ蝗ｳ縺ｮ豌ｴ蟷ｳ驟咲ｽｮ繧呈欠螳壹〒縺阪∪縺吶ら怐逡･譎ゅ・ center・井ｸｭ螟ｮ謠・∴・峨〒縺吶・
+蟾ｦ謠・∴・・
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_008.png" alt=""></p>
+<p>蝗ｳ6.4 蟾ｦ謠・∴縺ｧ陦ｨ遉ｺ縺励◆蝗ｳ</p>
+<p>荳ｭ螟ｮ謠・∴・医ョ繝輔か繝ｫ繝茨ｼ会ｼ・
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_009.png" alt=""></p>
+<p>蝗ｳ6.5 荳ｭ螟ｮ謠・∴縺ｧ陦ｨ遉ｺ縺励◆蝗ｳ</p>
+<p>蜿ｳ謠・∴・・
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_2/sample_reverse_img_010.png" alt=""></p>
+<p>蝗ｳ6.6 蜿ｳ謠・∴縺ｧ陦ｨ遉ｺ縺励◆蝗ｳ</p>
+<h2 id="toc-28">8.10. table・医く繝｣繝励す繝ｧ繝ｳ莉倥″陦ｨ・・</h2>
+<p>陦ｨ6.1 繝ｦ繝ｼ繧ｶ繝ｼ荳隕ｧ</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>蜷榊燕</th>
+<th>讓ｩ髯・</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>001</td>
+<td>螻ｱ逕ｰ螟ｪ驛・</td>
+<td>邂｡逅・・</td>
+</tr>
+<tr>
+<td>002</td>
+<td>驤ｴ譛ｨ闃ｱ蟄・</td>
+<td>荳闊ｬ</td>
+</tr>
+</tbody></table>
+<p>繝・・繝悶Ν縺ｮ繧ｻ繝ｫ蜀・〒謾ｹ陦後☆繧九↓縺ｯ 繧堤峩謗･譖ｸ縺阪∪縺吶・</p>
+<table>
+<thead>
+<tr>
+<th>鬆・岼</th>
+<th>蜀・ｮｹ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>蟇ｾ蠢廾S</td>
+<td>Windows<br><br><br>macOS<br><br><br>Linux</td>
+</tr>
+<tr>
+<td>蛯呵・</td>
+<td>1陦檎岼<br><br><br>2陦檎岼</td>
+</tr>
+</tbody></table>
+<h1 id="toc-29">9. 繝壹・繧ｸ蛹ｺ蛻・ｊ</h1>
+<p>莉･荳九・陦後〒PDF荳翫・繝壹・繧ｸ縺悟・繧頑崛繧上ｊ縺ｾ縺吶・</p>
+<h1 id="toc-30">10. 繝壹・繧ｸ蛹ｺ蛻・ｊ蠕後・繝壹・繧ｸ</h1>
+<p>繝壹・繧ｸ蛹ｺ蛻・ｊ蠕後・繧ｳ繝ｳ繝・Φ繝・〒縺吶１DF 縺ｧ遒ｺ隱阪☆繧九→縲√％縺ｮ繧ｻ繧ｯ繧ｷ繝ｧ繝ｳ縺梧眠縺励＞繝壹・繧ｸ縺ｫ蟋九∪繧翫∪縺吶・</p>
+<h2 id="toc-31">10.1. 縺ｾ縺ｨ繧・</h2>
+<p>縺薙・繧ｵ繝ｳ繝励Ν縺ｧ遒ｺ隱阪〒縺阪ｋ隕∫ｴ・・</p>
+<table>
+<thead>
+<tr>
+<th>繧ｫ繝・ざ繝ｪ</th>
+<th>隕∫ｴ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Markdown讓呎ｺ・</td>
+<td>隕句・縺励・繝ｪ繧ｹ繝医・陦ｨ繝ｻ繧ｳ繝ｼ繝峨・蠑慕畑繝ｻ蛹ｺ蛻・ｊ邱・</td>
+</tr>
+<tr>
+<td>閾ｪ蜍慕分蜿ｷ</td>
+<td>h1縲徂3 縺ｫ遶逡ｪ蜿ｷ縺御ｻ倥￥</td>
+</tr>
+<tr>
+<td>DSL 繝悶Ο繝・け</td>
+<td>warning / center / right / large / red</td>
+</tr>
+<tr>
+<td>DSL 蝗ｳ</td>
+<td>figure・亥ｹ・・鬮倥＆謖・ｮ壼ｯｾ蠢懊√く繝｣繝励す繝ｧ繝ｳ莉倥″・・</td>
+</tr>
+<tr>
+<td>蝗ｳ陦ｨ蜿ら・</td>
+<td>id莉倥″ figure/table 繧・ref險俶ｳ包ｼ・ef:xxx・峨〒蜿ら・</td>
+</tr>
+<tr>
+<td>蝗ｳ繝代せ蛻ｶ蠕｡</td>
+<td>assetsBase 謖・ｮ壽凾縺ｯ縺昴・繝代せ襍ｷ轤ｹ縲∵悴謖・ｮ壽凾縺ｯ Markdown 驟咲ｽｮ繝輔か繝ｫ繝襍ｷ轤ｹ</td>
+</tr>
+<tr>
+<td>DSL 陦ｨ</td>
+<td>table・医く繝｣繝励す繝ｧ繝ｳ莉倥″・・</td>
+</tr>
+<tr>
+<td>Mermaid</td>
+<td>flowchart / sequenceDiagram 縺ｪ縺ｩ</td>
+</tr>
+<tr>
+<td>繝壹・繧ｸ蛻ｶ蠕｡</td>
+<td>pagebreak</td>
+</tr>
+<tr>
+<td>PDF 險ｭ螳・</td>
+<td>page.json・育畑邏吶・菴咏區・・</td>
+</tr>
+<tr>
+<td>繧ｹ繧ｿ繧､繝ｫ險ｭ螳・</td>
+<td>style.json・医ヵ繧ｩ繝ｳ繝医・濶ｲ繝ｻ繧ｹ繝壹・繧ｷ繝ｳ繧ｰ・・</td>
+</tr>
+</tbody></table>
+
+</body>
+</html>

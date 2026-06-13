@@ -2,25 +2,23 @@
 title: 変換機能サンプル2
 subtitle: Mermaid複雑図・多行テーブル・改修検証用
 toc: true
-titlePage: false
-revisionHistoryPage: false
+titlePage: true
+revisionHistoryPage: true
 pdfOutputDir: .
 htmlOutputDir: .
 docxOutputDir: .
-# headerFooter:              # ヘッダー・フッターは文書ごとにフロントマターで指定
-#   enabled: true
-#   fontSize: "9px"
-#   header:
-#     left: ""
-#     center: ""
-#     right: ""
-#   footer:
-#     left: ""
-#     center: "<span class='pageNumber'></span>/<span class='totalPages'></span>"
-#     right: ""
+paper: A4
+orientation: landscape
+margin:
+  top: 15mm
+  right: 12mm
+  bottom: 12mm
+  left: 12mm
+tocDepth: 2
+paragraphIndent: false
 ---
 
-# Mermaid 検証
+# Mermaid 検証 
 
 ## コードブロック図番号の確認
 
@@ -73,6 +71,8 @@ flowchart TD
 ```
 フロー図1 複雑なフローチャート
 :::
+
+
 
 ## ノード内改行の確認
 

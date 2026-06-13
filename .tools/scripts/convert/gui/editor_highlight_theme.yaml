@@ -1,0 +1,28 @@
+# エディタ色付けテーマ
+# ここを編集すると GUI の「色付け」表示に反映されます。
+# 値は CSS カラー（#RRGGBB など）を指定してください。
+
+colors:
+  # 見出し (Markdown: # 〜 ######)
+  heading1: "#b00020"
+  heading2: "#d35400"
+  heading3: "#00796b"
+  heading4: "#1e6bd6"
+  heading5: "#6a1b9a"
+  heading6: "#5d4037"
+  headingMark: "#263238" # 行頭の # 記号
+
+  # 独自 DSL (:::) ブロック
+  dslFence: "#ff006e" # :::
+  dslType: "#ff7a00"  # :::figure などの type 名
+  dslArgs: "#0081a7"  # type 以降の引数
+  dslLine: "#2f3e46"  # DSL ブロック内本文
+
+  # コード
+  codeFence: "#111827" # ```
+  codeLine: "#334155"  # コード本文
+  inlineCode: "#c1121f" # `inline code`
+
+  # リンクと通常文字
+  link: "#0055ff"
+  default: "#111111"

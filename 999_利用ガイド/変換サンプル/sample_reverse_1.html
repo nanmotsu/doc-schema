@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1\. 変換機�Eサンプル</title>
+  <style>
+:root {
+    --h1-size:    28px;
+    --h2-size:    24px;
+    --h3-size:    20px;
+    --body-size:  16px;
+    --small-size: 13px;
+    --font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+    --body-line-height:    1.3;
+    --heading-line-height: 1.3;
+    --color-text:    #333333;
+    --color-heading: #111111;
+    --color-heading-border: #2c3e50;
+    --color-subtle:  #555555;
+    --color-link:    #0066cc;
+    --color-code:    #c7254e;
+    --color-code-bg: #f9f2f4;
+    --color-pre-bg:  #f6f8fa;
+    --color-border:  #bdc3c7;
+    --color-th-bg:   #f0f0f0;
+    --table-cell-border: 1px solid #bdc3c7;
+    --table-cell-padding: 0.45em 0.8em;
+    --table-margin:       0 0;
+    --gap-paragraph:   0.75em;
+    --gap-heading-top: 2em;
+    --gap-heading-bot: 0.5em;
+    --toc-padding:      0.1em 0;
+    --toc-item-padding: 0 0;
+    --title-size:       36px;
+    --subtitle-size:    18px;
+    --cover-max-height: 360px;
+    --page-content-height: calc(297mm - 20mm - 15mm);
+}
+@page {
+    size: A4 portrait;
+    margin: 20mm 10mm 15mm 15mm;
+}
+body { counter-reset: h1-counter; }
+h1 { counter-reset: h2-counter figure-counter table-counter; }
+h2 { counter-reset: h3-counter; }
+h1::before { counter-increment: h1-counter; content: counter(h1-counter) ". "; }
+h2::before { counter-increment: h2-counter; content: counter(h1-counter) "." counter(h2-counter) ". "; }
+h3::before { counter-increment: h3-counter; content: counter(h1-counter) "." counter(h2-counter) "." counter(h3-counter) ". "; }
+
+.warning {
+    color: #e67e00;
+    background: #fff8f0;
+    border-left: 4px solid #e67e00;
+    padding: 0.2em 0.5em;
+    margin: 0.5em 0;
+    border-radius: 0 4px 4px 0;
+    max-width: 100%;
+}
+.center {
+    text-align: center;
+}
+.right {
+    text-align: right;
+}
+.large {
+    font-size: 24px;
+}
+.red {
+    color: #cc0000;
+}
+.page-break {
+    page-break-before: always;
+    break-before: page;
+}
+.figure {
+    margin: 0 0;
+    text-align: center;
+}
+figure.figure figcaption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.table-wrapper {
+    margin: 0 0;
+}
+.table-wrapper .table-caption {
+    font-size: var(--small-size);
+    color: #555;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+    text-align: center;
+}
+
+figure.figure figcaption::before {
+    counter-increment: figure-counter;
+    content: "�}" counter(h1-counter) "." counter(figure-counter) " ";
+    font-weight: bold;
+}
+.table-wrapper .table-caption::before {
+    counter-increment: table-counter;
+    content: "�\" counter(h1-counter) "." counter(table-counter) " ";
+    font-weight: bold;
+}
+
+/* ============================================================
+   Markdown ���� �X�^�C���V�[�g�i�\����`�̂݁j
+   CSS�ϐ��EDSL�N���X�E�J�E���^�[�E@page �� build.mjs ���X�L�[�}���琶������B
+   ============================================================ */
+
+/* === ���Z�b�g ===================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* === �x�[�X ======================================================= */
+body {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+    font-size: var(--body-size, 16px);
+    line-height: var(--body-line-height, 1.8);
+    color: var(--color-text, #333);
+    padding: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+/* === ���o�� ======================================================= */
+h1,
+h2,
+h3,
+h4 {
+    margin-top: var(--gap-heading-top, 0.8em);
+    margin-bottom: var(--gap-heading-bot, 0.5em);
+    line-height: var(--heading-line-height, 1.3);
+    font-weight: bold;
+}
+
+h1 {
+    font-size: var(--h1-size, 28px);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.25em;
+}
+
+h2 {
+    font-size: var(--h2-size, 24px);
+    border-bottom: 1px solid var(--color-border, #bdc3c7);
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: var(--h3-size, 20px);
+}
+
+h4 {
+    font-size: var(--body-size, 16px);
+}
+
+/* === �{���v�f ===================================================== */
+p {
+    margin: var(--gap-paragraph) 0;
+}
+
+/* �t�����g�}�^�[ paragraphIndent ���L���ȂƂ��̂ݖ{���i��������� */
+body.indent-body>p {
+    text-indent: 1em;
+}
+
+/* DSL�u���b�N��E�e�[�u���Z����� <p> �̓}�[�W������� */
+.warning p,
+.center p,
+.right p,
+.large p,
+.red p,
+td p,
+th p {
+    margin: 0;
+}
+
+/* figure ��� <p> ? marked �� ![alt](src) �� <p><img> �Ƀ��b�v���邽�ߌʏ��� */
+/* margin ������Aline-height: 0 �ŃC�����C���摜�̃x�[�X���C���]�����������   */
+.figure p {
+    margin: 0;
+    line-height: 0;
+}
+
+ul,
+ol {
+    padding-left: 2em;
+    margin: 0.5em 0;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+blockquote {
+    border-left: 4px solid var(--color-border);
+    margin: 0.5em 0;
+    padding: 0 1em;
+    color: var(--color-subtle);
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 2em 0;
+}
+
+a {
+    color: var(--color-link, #2980b9);
+}
+
+/* === �R�[�h ======================================================= */
+code {
+    font-family: 'Consolas', 'Noto Sans Mono', 'Courier New', monospace;
+    background: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+
+pre {
+    background: var(--color-pre-bg, #f6f8fa);
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    margin: 1em 0;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.9em;
+}
+
+/* === �摜 ========================================================= */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* === SVG�iMermaid���j============================================= */
+figure.figure svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* SVG �e�L�X�g�̃t�H���g�w��ihtmlLabels:false ���j */
+figure.figure svg text {
+    font-family: var(--font-family, 'Noto Sans JP', 'Meiryo', sans-serif);
+}
+
+/* �R�[�h��}�Ƃ��Ĉ����ꍇ�͖{������񂹂ɂ��� */
+figure.code-figure {
+    text-align: left;
+}
+
+figure.code-figure pre {
+    margin: 0;
+}
+
+figure.code-figure figcaption {
+    text-align: center;
+}
+
+/* === �e�[�u�� ===================================================== */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--table-margin, 1.5em 0);
+}
+
+th,
+td {
+    border: var(--table-cell-border, 1px solid #bdc3c7);
+    padding: var(--table-cell-padding, 0.45em 0.8em);
+    text-align: left;
+}
+
+th {
+    background: var(--color-th-bg);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* colRatio / colWidths �w�莞: table-layout: fixed �ɍ��킹�ăw�b�_�[��܂�Ԃ����� */
+table.col-fixed th {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ============================================================
+   �\��y�[�W
+   ============================================================ */
+.title-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--page-content-height, 277mm);
+    text-align: center;
+    padding: 40px;
+    box-sizing: border-box;
+    break-after: page;
+    page-break-after: always;
+}
+
+.title-page .doc-title {
+    font-size: var(--title-size, 36px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.title-page .doc-subtitle {
+    font-size: var(--subtitle-size, 18px);
+    color: var(--color-subtle, #555);
+    margin-top: 0.6em;
+    margin-bottom: 0;
+}
+
+.title-page .cover-image {
+    display: block;
+    max-height: var(--cover-max-height, 360px);
+    max-width: 100%;
+    margin: 1.5em auto 0;
+    object-fit: cover;
+}
+
+/* ============================================================
+   ��������y�[�W
+   ============================================================ */
+.revision-history {
+    break-after: page;
+    page-break-after: always;
+    padding: 2em 0;
+}
+
+.revision-history-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+    padding-bottom: 0.2em;
+    margin: 0 0 1em;
+}
+
+.revision-history .col-version {
+    width: 8%;
+    white-space: nowrap;
+}
+
+.revision-history .col-date {
+    width: 18%;
+    white-space: nowrap;
+}
+
+.revision-history .col-author {
+    width: 14%;
+    white-space: nowrap;
+}
+
+.revision-history .col-description {
+    width: 60%;
+}
+
+/* ============================================================
+   �ڎ�
+   ============================================================ */
+.toc {
+    break-after: page;
+    page-break-after: always;
+    padding: var(--toc-padding, 2em 0);
+}
+
+.toc-title {
+    font-size: var(--h2-size, 24px);
+    font-weight: bold;
+    color: var(--color-heading, #111);
+    margin: 0 0 1em;
+    padding-bottom: 0.3em;
+    border-bottom: 2px solid var(--color-heading-border, #2c3e50);
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.toc li {
+    padding: var(--toc-item-padding, 0.3em 0);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.toc a {
+    color: var(--color-text, #333);
+    text-decoration: none;
+}
+
+.toc a:hover {
+    color: var(--color-link, #0066cc);
+    text-decoration: underline;
+}
+
+/* ============================================================
+   ��ʕ\���iHTML�j
+   ============================================================ */
+@media screen {
+
+    /* �y�[�W��؂� DSL �̎��o�I�C���W�P�[�^�[�iPDF �ł͔�\���j */
+    .page-break {
+        margin: 2em 0;
+        border-top: 1px solid #aaa;
+    }
+}
+
+/* ============================================================
+   ��� / PDF
+   ============================================================ */
+@media print {
+    body {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    h1,
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+
+    figure,
+    .warning {
+        page-break-inside: avoid;
+    }
+
+    /* �傫���\�͕���������A�\�ԍ��������c�����̂�h�� */
+    .table-wrapper .table-caption {
+        break-after: avoid;
+        page-break-after: avoid;
+        margin-bottom: 0.3em;
+    }
+
+    .table-wrapper table {
+        break-before: avoid;
+        page-break-before: avoid;
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    .table-wrapper thead {
+        display: table-header-group;
+    }
+
+    .table-wrapper tr,
+    .table-wrapper th,
+    .table-wrapper td {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-x: visible;
+    }
+}
+  </style>
+</head>
+<body class="indent-body">
+
+
+<nav class="toc">
+  <p class="toc-title">目次</p>
+  <ul>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-1">1. 1\. 変換機�Eサンプル</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-2">2. 2\. 見�Eし�E自動番号</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-3">2.1. 2.1. サブセクション</a></li>
+    <li class="toc-level-3" style="padding-left:3em"><a href="#toc-4">2.1.1. 2.1.1. さらに深ぁE��クション</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-5">3. 3\. 基本チE��スト要素</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-6">3.1. 3.1. リスチE</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-7">3.2. 3.2. 番号付きリスチE</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-8">3.3. 3.3. 引用</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-9">3.4. 3.4. 区刁E��緁E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-10">3.5. 3.5. リンクと強調</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-11">4. 4\. コードブロチE��</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-12">5. 5\. MermaidグラチE</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-13">5.1. 5.1. フローチャート（図番号・キャプション付き�E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-14">5.2. 5.2. シーケンス図�E�図番号・キャプション付き�E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-15">5.3. 5.3. キャプションなし（図番号のみ�E�E</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-16">6. 6\. チE�Eブル�E�標準Markdown�E�E</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-17">7. 7\. 図表参�E�E�Ed + ref�E�E</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-18">8. 8\. 独自DSL ブロチE��</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-19">8.1. 8.1. warning�E�警告！E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-20">8.2. 8.2. center�E�中央揁E���E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-21">8.3. 8.3. right�E�右寁E���E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-22">8.4. 8.4. large�E�大きい斁E��！E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-23">8.5. 8.5. red�E�赤斁E��！E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-24">8.6. 8.6. figure�E�図  Einternal起点・チE��ォルトサイズ�E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-25">8.7. 8.7. figure�E�図  Einternal起点・幁E��定！E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-26">8.8. 8.8. figure�E�図  E基準パス未持E��時�E�E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-27">8.9. 8.9. figure�E�図  E配置持E��！E</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-28">8.10. 8.10. table�E�キャプション付き表�E�E</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-29">9. 9\. ペ�Eジ区刁E��</a></li>
+    <li class="toc-level-1" style="padding-left:0em"><a href="#toc-30">10. 10\. ペ�Eジ区刁E��後�Eペ�Eジ</a></li>
+    <li class="toc-level-2" style="padding-left:1.5em"><a href="#toc-31">10.1. 10.1. まとめE</a></li>
+  </ul>
+</nav>
+<h2 id="toc-1">?---
+paper: A4
+orientation: portrait
+titlePage: true
+toc: false
+revisionHistoryPage: true</h2>
+<!-- Generated from sample.docx by build_from_word.mjs -->
+
+<h1 id="toc-2">1. 変換機�Eサンプル</h1>
+<p>本ドキュメント�E <strong>Markdown ↁEHTML / PDF 変換機�E</strong> の全要素を�Eとつのファイルで確認するため�Eサンプルです、E</p>
+<h1 id="toc-3">2. 見�Eし�E自動番号</h1>
+<p>見�Eしには自動で番号が付与されます！Etyle.json の heading.numbering で制御�E�、E</p>
+<h2 id="toc-4">2.1. サブセクション</h2>
+<h3 id="toc-5">2.1.1. さらに深ぁE��クション</h3>
+<p>本斁E��キストです。inline code もこのように表示されます、E
+単一改行�Eスペ�Eス扱ぁE��なります（段落は変わらなぁE��、Eこ�E行�E上�E行と同じ段落です、E
+行末に \ で改行できます、E 
+ここから新しい行になります、E
+行末に半角スペ�Eス2つでも同じ効果です、E 
+ここから新しい行になります、E
+空行を挟�Eと段落が�Eかれます、E</p>
+<h1 id="toc-6">3. 基本チE��スト要素</h1>
+<h2 id="toc-7">3.1. リスチE</h2>
+<ul>
+<li>箁E��書ぁE</li>
+<li>箁E��書ぁE<ul>
+<li>ネスチE</li>
+<li>ネスチE</li>
+</ul>
+</li>
+<li>箁E��書ぁE</li>
+</ul>
+<h2 id="toc-8">3.2. 番号付きリスチE</h2>
+<ol>
+<li>手頁E</li>
+<li>手頁E</li>
+<li>手頁E</li>
+</ol>
+<h2 id="toc-9">3.3. 引用</h2>
+<p>これは引用チE��ストです、E褁E��行にまたがることもできます、E</p>
+<h2 id="toc-10">3.4. 区刁E��緁E</h2>
+<h2 id="toc-11">3.5. リンクと強調</h2>
+<p>**太字テキスチE*、斜体テキスト、打ち消し緁E</p>
+<h1 id="toc-12">4. コードブロチE��</h1>
+<p>インライン: const x = 42;</p>
+<p>ブロチE��:</p>
+<p>// JavaScriptのサンプル</p>
+<p>function greet(name) {</p>
+<p>return `Hello, ${name}!`;</p>
+<p>}</p>
+<p>console.log(greet(&quot;World&quot;));</p>
+<p># シェルコマンチE
+node .tools/scripts/convert/build.mjs input.md</p>
+<h1 id="toc-13">5. MermaidグラチE</h1>
+<p>図番号・キャプションを付ける場合�E、E::figure で Mermaid ブロチE��全体を囲みます、E</p>
+<h2 id="toc-14">5.1. フローチャート（図番号・キャプション付き�E�E</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_001_1.png" alt=""></p>
+<p>図5.1 Markdown変換パイプラインのフローチャーチE</p>
+<h2 id="toc-15">5.2. シーケンス図�E�図番号・キャプション付き�E�E</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_002_1.png" alt=""></p>
+<p>図5.2 ログイン処琁E�Eシーケンス図</p>
+<h2 id="toc-16">5.3. キャプションなし（図番号のみ�E�E</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_003_1.png" alt=""></p>
+<h1 id="toc-17">6. チE�Eブル�E�標準Markdown�E�E</h1>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>名前</th>
+<th>役割</th>
+<th>スチE�Eタス</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>001</td>
+<td>山田太郁E</td>
+<td>管琁E��E</td>
+<td>有効</td>
+</tr>
+<tr>
+<td>002</td>
+<td>鈴木花孁E</td>
+<td>一般ユーザー</td>
+<td>有効</td>
+</tr>
+<tr>
+<td>003</td>
+<td>田中一郁E</td>
+<td>閲覧老E</td>
+<td>無効</td>
+</tr>
+</tbody></table>
+<h1 id="toc-18">7. 図表参�E�E�Ed + ref�E�E</h1>
+<p>本斁E��で図表番号を固定文字で書かずに、ref記法で参�Eできます、E
+表は 表7.1 に示す通りです。図は 図7.1 の通りです、E
+参�EID付きユーザー一覧</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>名前</th>
+<th>区刁E</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>101</td>
+<td>佐藤花孁E</td>
+<td>A</td>
+</tr>
+<tr>
+<td>102</td>
+<td>高橋次郁E</td>
+<td>B</td>
+</tr>
+</tbody></table>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_004_1.png" alt=""></p>
+<p>図5.3 参�EID付きの概要図</p>
+<h1 id="toc-19">8. 独自DSL ブロチE��</h1>
+<p>以下�E 000_schema/convert/dsl.json で定義されたブロチE��です、E</p>
+<h2 id="toc-20">8.1. warning�E�警告！E</h2>
+<p>チE��ォルト！Etyle.json の warningMaxWidth が適用される！E</p>
+<p>こ�E操作�E允E��戻せません。実行前に忁E��バックアチE�Eを取得してください、E
+幁E��持E��する場合�E width= 属性で上書き可能。style.json の設定値:</p>
+<ul>
+<li>warningMaxWidth  E最大幁E��デフォルチE100%�E�E-   colors.warningBg  E背景色</li>
+<li>colors.warningBorder  E左ボ�Eダー色</li>
+<li>spacing 系は dsl.json の padding / margin で直接調整</li>
+</ul>
+<p>幁E60% 持E��E</p>
+<p>幁E�� 60% に絞ったwarningブロチE��です、E
+幁E40em 持E��E</p>
+<p>固定幁E��E0em�E��EwarningブロチE��です。短ぁE��キストでも枠が庁E��りすぎません、E</p>
+<h2 id="toc-21">8.2. center�E�中央揁E���E�E</h2>
+<p>*<em>中央に配置されたテキストでぁE</em></p>
+<h2 id="toc-22">8.3. right�E�右寁E���E�E</h2>
+<p>作�E日�E�E026年5朁E7日</p>
+<h2 id="toc-23">8.4. large�E�大きい斁E��！E</h2>
+<p>重要なお知らせ</p>
+<h2 id="toc-24">8.5. red�E�赤斁E��！E</h2>
+<p>*<em>エラー�E�E</em> 接続がタイムアウトしました、E</p>
+<h2 id="toc-25">8.6. figure�E�図  Einternal起点・チE��ォルトサイズ�E�E</h2>
+<p>assetsBase を指定すると、そのフォルダを起点に相対パスを解決します、E
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_005_1.png" alt=""></p>
+<p>図6.1 シスチE��構�Eの概要図</p>
+<h2 id="toc-26">8.7. figure�E�図  Einternal起点・幁E��定！E</h2>
+<p><img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_006_1.png" alt=""></p>
+<p>図6.2 幁E��60%に持E��した図</p>
+<p>ピクセル持E��も可能です、E
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_007_1.png" alt=""></p>
+<p>図6.3 400ÁE00px 持E���E図</p>
+<h2 id="toc-27">8.8. figure�E�図  E基準パス未持E��時�E�E</h2>
+<p>assetsBase を省略した場合�E、変換する Markdown ファイルの配置フォルダを起点に相対パスを解決します、E</p>
+<h2 id="toc-28">8.9. figure�E�図  E配置持E��！E</h2>
+<p>align= 属性で図の水平配置を指定できます。省略時�E center�E�中央揁E���E�です、E
+左揁E���E�E
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_008_1.png" alt=""></p>
+<p>図6.4 左揁E��で表示した図</p>
+<p>中央揁E���E�デフォルト）！E
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_009_1.png" alt=""></p>
+<p>図6.5 中央揁E��で表示した図</p>
+<p>右揁E���E�E
+<img src="file:///C:/Users/blueb/OneDrive/%E3%81%B6%E3%82%8B%E3%81%B9%E3%82%8A/%E7%A4%BE%E5%86%85%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E7%AE%A1%E7%90%86/999_%E5%88%A9%E7%94%A8%E3%82%AC%E3%82%A4%E3%83%89/%E5%A4%89%E6%8F%9B%E3%82%B5%E3%83%B3%E3%83%97%E3%83%AB/assets/sample_reverse_img_010_1.png" alt=""></p>
+<p>図6.6 右揁E��で表示した図</p>
+<h2 id="toc-29">8.10. table�E�キャプション付き表�E�E</h2>
+<p>表6.1 ユーザー一覧</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>名前</th>
+<th>権陁E</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>001</td>
+<td>山田太郁E</td>
+<td>管琁E��E</td>
+</tr>
+<tr>
+<td>002</td>
+<td>鈴木花孁E</td>
+<td>一般</td>
+</tr>
+</tbody></table>
+<p>チE�Eブルのセル冁E��改行するには を直接書きます、E</p>
+<table>
+<thead>
+<tr>
+<th>頁E��</th>
+<th>冁E��</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>対応OS</td>
+<td>Windows<br><br><br>macOS<br><br><br>Linux</td>
+</tr>
+<tr>
+<td>備老E</td>
+<td>1行目<br><br><br>2行目</td>
+</tr>
+</tbody></table>
+<h1 id="toc-30">9. ペ�Eジ区刁E��</h1>
+<p>以下�E行でPDF上�Eペ�Eジが�Eり替わります、E</p>
+<h1 id="toc-31">10. ペ�Eジ区刁E��後�Eペ�Eジ</h1>
+<p>ペ�Eジ区刁E��後�EコンチE��チE��す。PDF で確認すると、このセクションが新しいペ�Eジに始まります、E</p>
+<h2>10.1. まとめE</h2>
+<p>こ�Eサンプルで確認できる要素�E�E</p>
+<table>
+<thead>
+<tr>
+<th>カチE��リ</th>
+<th>要素</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Markdown標溁E</td>
+<td>見�Eし�Eリスト�E表・コード�E引用・区刁E��緁E</td>
+</tr>
+<tr>
+<td>自動番号</td>
+<td>h1〜h3 に章番号が付く</td>
+</tr>
+<tr>
+<td>DSL ブロチE��</td>
+<td>warning / center / right / large / red</td>
+</tr>
+<tr>
+<td>DSL 図</td>
+<td>figure�E�幁E�E高さ持E��対応、キャプション付き�E�E</td>
+</tr>
+<tr>
+<td>図表参�E</td>
+<td>id付き figure/table めEref記法！Eef:xxx�E�で参�E</td>
+</tr>
+<tr>
+<td>図パス制御</td>
+<td>assetsBase 持E��時はそ�Eパス起点、未持E��時は Markdown 配置フォルダ起点</td>
+</tr>
+<tr>
+<td>DSL 表</td>
+<td>table�E�キャプション付き�E�E</td>
+</tr>
+<tr>
+<td>Mermaid</td>
+<td>flowchart / sequenceDiagram など</td>
+</tr>
+<tr>
+<td>ペ�Eジ制御</td>
+<td>pagebreak</td>
+</tr>
+<tr>
+<td>PDF 設宁E</td>
+<td>page.json�E�用紙�E余白�E�E</td>
+</tr>
+<tr>
+<td>スタイル設宁E</td>
+<td>style.json�E�フォント�E色・スペ�Eシング�E�E</td>
+</tr>
+</tbody></table>
+
+</body>
+</html>

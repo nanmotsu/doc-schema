@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>変換GUI</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+            color: #1f2937;
+            background: #eef3fb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #c9d5ea;
+            background: #ffffff;
+        }
+
+        .toolbar-selects {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toolbar-selects select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toolbar select,
+        .toolbar button,
+        .toolbar input {
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid #b8c7e4;
+            background: #fff;
+            padding: 0 10px;
+            font-size: 13px;
+        }
+
+        .toolbar button {
+            cursor: pointer;
+            background: #1f64d8;
+            color: #fff;
+            border-color: #1f64d8;
+            font-weight: 600;
+        }
+
+        .toolbar button:hover {
+            background: #194fb0;
+        }
+
+        .status {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #4d617f;
+            border-bottom: 1px solid #d8e0ef;
+            background: #f6f9ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .main {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .panel-col {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            gap: 6px;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border: 1px solid #c9d5ea;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .panel-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334;
+            padding: 8px 10px;
+            border-bottom: 1px solid #e0e7f5;
+            background: #f7faff;
+        }
+
+        #editor {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            border: none;
+            outline: none;
+            resize: none;
+            padding: 12px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #17243c;
+        }
+
+        .editor-wrap {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            background: #fff;
+        }
+
+        #editorHighlight {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 12px;
+            overflow: auto;
+            border: none;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            font-weight: 400;
+            font-synthesis: none;
+            pointer-events: none;
+            color: var(--editor-hl-default, #1f2937);
+            display: none;
+        }
+
+        #editor {
+            position: absolute;
+            inset: 0;
+            background: transparent;
+        }
+
+        #editor.with-highlight {
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            caret-color: #17243c;
+            font-synthesis: none;
+        }
+
+        .hl-heading-mark {
+            color: var(--editor-hl-headingMark, #5c6f92);
+            font-weight: 700;
+        }
+
+        .hl-heading-1 {
+            color: var(--editor-hl-heading1, #0f4bb8);
+            font-weight: 700;
+        }
+
+        .hl-heading-2 {
+            color: var(--editor-hl-heading2, #1d6fdc);
+            font-weight: 700;
+        }
+
+        .hl-heading-3 {
+            color: var(--editor-hl-heading3, #2b8a7f);
+            font-weight: 700;
+        }
+
+        .hl-heading-4 {
+            color: var(--editor-hl-heading4, #3e7a4a);
+            font-weight: 700;
+        }
+
+        .hl-heading-5 {
+            color: var(--editor-hl-heading5, #7154d9);
+            font-weight: 700;
+        }
+
+        .hl-heading-6 {
+            color: var(--editor-hl-heading6, #8b5a2b);
+            font-weight: 700;
+        }
+
+        .hl-dsl-fence {
+            color: var(--editor-hl-dslFence, #b06a00);
+            font-weight: 700;
+        }
+
+        .hl-dsl-type {
+            color: var(--editor-hl-dslType, #8a4b00);
+            font-weight: 700;
+        }
+
+        .hl-dsl-args {
+            color: var(--editor-hl-dslArgs, #6f7f9a);
+        }
+
+        .hl-dsl-line {
+            color: var(--editor-hl-dslLine, #425266);
+            font-weight: 400;
+        }
+
+        .hl-code-fence {
+            color: var(--editor-hl-codeFence, #6b7280);
+            font-weight: 700;
+        }
+
+        .hl-code-line {
+            color: var(--editor-hl-codeLine, #475569);
+            font-weight: 400;
+        }
+
+        .hl-inline-code {
+            color: var(--editor-hl-inlineCode, #a33159);
+            font-weight: 400;
+        }
+
+        .hl-link {
+            color: var(--editor-hl-link, #0b63c8);
+            font-weight: 400;
+        }
+
+        .hl-plain {
+            color: var(--editor-hl-default, #1f2937);
+            font-weight: 400;
+        }
+
+        .editor-highlight-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #45556d;
+            user-select: none;
+        }
+
+        .editor-highlight-toggle input {
+            margin: 0;
+            width: 14px;
+            height: 14px;
+        }
+
+        #preview {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        .context-menu {
+            position: fixed;
+            z-index: 100;
+            min-width: 260px;
+            border: 1px solid #c9d5ea;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 8px 26px rgba(20, 43, 90, 0.2);
+            display: none;
+            overflow: hidden;
+        }
+
+        .context-item {
+            padding: 9px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid #eef2fb;
+            user-select: none;
+        }
+
+        .context-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-item:hover {
+            background: #f3f7ff;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: none;
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal {
+            width: min(760px, 100%);
+            max-height: 88vh;
+            overflow: auto;
+            background: #fff;
+            border: 1px solid #c9d5ea;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 14px;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+        }
+
+        .modal h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .fm-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .fm-grid label {
+            font-size: 12px;
+            color: #45556d;
+        }
+
+        .fm-grid input,
+        .fm-grid select,
+        .fm-grid textarea {
+            width: 100%;
+            margin-top: 4px;
+            border: 1px solid #b8c7e4;
+            border-radius: 6px;
+            padding: 7px;
+            font-size: 13px;
+        }
+
+        .fm-grid textarea {
+            min-height: 110px;
+            resize: vertical;
+            font-family: Consolas, "Courier New", monospace;
+        }
+
+        .modal-actions {
+            margin-top: 4px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            position: sticky;
+            bottom: -14px;
+            background: #fff;
+            padding: 10px 0 0;
+            border-top: 1px solid #e5ecf8;
+        }
+
+        .modal-actions button {
+            border: 1px solid #b8c7e4;
+            border-radius: 8px;
+            height: 34px;
+            padding: 0 12px;
+            cursor: pointer;
+            background: #fff;
+        }
+
+        .modal-actions .primary {
+            background: #1f64d8;
+            color: #fff;
+            border-color: #1f64d8;
+        }
+
+        .fm-advanced {
+            grid-column: 1 / -1;
+            border: 1px solid #d6e1f2;
+            border-radius: 8px;
+            background: #f9fbff;
+            padding: 8px;
+        }
+
+        .fm-advanced summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: #334;
+            font-weight: 700;
+            user-select: none;
+        }
+
+        .fm-advanced-body {
+            margin-top: 8px;
+        }
+
+        .fm-advanced-body label {
+            display: block;
+        }
+
+        .panel-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .panel-bar button {
+            height: 28px;
+            border-radius: 7px;
+            border: 1px solid #b8c7e4;
+            background: #fff;
+            padding: 0 10px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .toggle-group {
+            display: flex;
+            border: 1px solid #b8c7e4;
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .toggle-group .toggle-btn {
+            height: 28px;
+            border: none;
+            border-radius: 0;
+            padding: 0 14px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #fff;
+            color: #45556d;
+            font-weight: 600;
+        }
+
+        .toggle-group .toggle-btn+.toggle-btn {
+            border-left: 1px solid #b8c7e4;
+        }
+
+        .toggle-group .toggle-btn.active {
+            background: #1f64d8;
+            color: #fff;
+        }
+
+        .toggle-group .toggle-btn:hover:not(.active) {
+            background: #e8f0fd;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        .loading-spinner {
+            width: 44px;
+            height: 44px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .panel-bar button:hover {
+            background: #e8f0fd;
+        }
+
+        .preview-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(238, 243, 251, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .preview-loading .mini-spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(31, 100, 216, 0.25);
+            border-top-color: #1f64d8;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @media (max-width: 980px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            .fm-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <div class="toolbar-selects">
+            <select id="dirSelect" title="Markdownディレクトリ"></select>
+            <select id="fileSelect" title="Markdownファイル"></select>
+        </div>
+        <button id="pdfBtn">PDF出力</button>
+    </div>
+
+    <div class="status" id="status">初期化中...</div>
+
+    <div class="main">
+        <div class="panel-col">
+            <div class="panel-bar">
+                <button id="fmBtn">フロントマター</button>
+                <label class="editor-highlight-toggle">
+                    <input id="editorHighlightToggle" type="checkbox">
+                    色付け
+                </label>
+            </div>
+            <section class="panel">
+                <div class="panel-title">Markdown（右クリック: ページ区切り / 画像 / Mermaid）</div>
+                <div class="editor-wrap">
+                    <pre id="editorHighlight" aria-hidden="true"></pre>
+                    <textarea id="editor" spellcheck="false"></textarea>
+                </div>
+            </section>
+        </div>
+        <div class="panel-col">
+            <div class="panel-bar">
+                <div class="toggle-group">
+                    <button id="htmlPreviewBtn" class="toggle-btn active">HTMLプレビュー</button>
+                    <button id="pdfPreviewBtn" class="toggle-btn">PDFプレビュー</button>
+                </div>
+            </div>
+            <section class="panel" style="position:relative;">
+                <div class="panel-title">プレビュー（PDFレイアウト目安）</div>
+                <div id="previewLoading" class="preview-loading" style="display:none;">
+                    <div class="mini-spinner"></div>
+                </div>
+                <iframe id="preview" title="preview"></iframe>
+            </section>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">処理中...</div>
+    </div>
+
+    <div class="context-menu" id="ctxMenu">
+        <div class="context-item" data-action="insert-pagebreak">ページ区切りを挿入（:::pagebreak）</div>
+        <div class="context-item" data-action="insert-image">画像figureを挿入（ダイアログ）</div>
+        <div class="context-item" data-action="insert-mermaid">Mermaid figureを挿入</div>
+    </div>
+
+    <div class="modal-backdrop" id="fmBackdrop">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-content">
+                <h3>フロントマター編集</h3>
+                <div class="fm-grid">
+                    <label>title<input id="fmTitle" type="text"></label>
+                    <label>subtitle<input id="fmSubtitle" type="text"></label>
+                    <label>paper
+                        <select id="fmPaper">
+                            <option>A4</option>
+                            <option>A3</option>
+                            <option>Letter</option>
+                            <option>Legal</option>
+                        </select>
+                    </label>
+                    <label>orientation
+                        <select id="fmOrientation">
+                            <option value="portrait">portrait</option>
+                            <option value="landscape">landscape</option>
+                        </select>
+                    </label>
+                    <label>tocDepth<input id="fmTocDepth" type="number" min="1" max="3" step="1"></label>
+                    <label>headingNumbering
+                        <select id="fmHeadingNumbering">
+                            <option value="">(未指定: デフォルトON)</option>
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                        </select>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+                        <input id="fmTitlePage" type="checkbox" style="width:auto;margin:0;">
+                        titlePageを表示
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+                        <input id="fmToc" type="checkbox" style="width:auto;margin:0;">
+                        目次を表示
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+                        <input id="fmRevisionHistoryPage" type="checkbox" style="width:auto;margin:0;">
+                        改訂履歴ページを表示
+                    </label>
+                    <label>paragraphIndent
+                        <select id="fmParagraphIndent">
+                            <option value="">(未指定)</option>
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                        </select>
+                    </label>
+                    <label>margin.top<input id="fmMarginTop" type="text" placeholder="20mm"></label>
+                    <label>margin.right<input id="fmMarginRight" type="text" placeholder="10mm"></label>
+                    <label>margin.bottom<input id="fmMarginBottom" type="text" placeholder="15mm"></label>
+                    <label>margin.left<input id="fmMarginLeft" type="text" placeholder="15mm"></label>
+                    <label style="grid-column:1 / -1;">cover<input id="fmCover" type="text"
+                            placeholder="assets/cover.png"></label>
+                    <label style="grid-column:1 / -1;">assetsBase<input id="fmAssetsBase" type="text"></label>
+                    <label style="grid-column:1 / -1;">tocManual<textarea id="fmTocManual"
+                            placeholder="- [1. 概要](#toc-1)"></textarea></label>
+                    <label style="grid-column:1 / -1;">revisionHistory (JSON配列)
+                        <textarea id="fmRevisionHistory"
+                            placeholder='[{"version":"1.0","date":"2026-06-01","author":"担当","description":"初版"}]'></textarea>
+                    </label>
+                    <details class="fm-advanced">
+                        <summary>高度設定（フロントマター全項目をJSONで編集）</summary>
+                        <div class="fm-advanced-body">
+                            <label>
+                                <textarea id="fmRawMeta"
+                                    placeholder='{"headerFooter":{"enabled":true,"fontSize":"9px"}}'></textarea>
+                            </label>
+                        </div>
+                    </details>
+                </div>
+                <div class="modal-actions">
+                    <button id="fmCancelBtn">閉じる</button>
+                    <button class="primary" id="fmApplyBtn">反映</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input id="imagePicker" type="file" accept="image/*" style="display:none;">
+
+    <script>
+        const dirSelect = document.getElementById("dirSelect");
+        const fileSelect = document.getElementById("fileSelect");
+        const editor = document.getElementById("editor");
+        const editorHighlight = document.getElementById("editorHighlight");
+        const editorHighlightToggle = document.getElementById("editorHighlightToggle");
+        const preview = document.getElementById("preview");
+        const statusEl = document.getElementById("status");
+        const fmBtn = document.getElementById("fmBtn");
+        const pdfPreviewBtn = document.getElementById("pdfPreviewBtn");
+        const htmlPreviewBtn = document.getElementById("htmlPreviewBtn");
+        const pdfBtn = document.getElementById("pdfBtn");
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const loadingText = document.getElementById("loadingText");
+        const ctxMenu = document.getElementById("ctxMenu");
+        const fmBackdrop = document.getElementById("fmBackdrop");
+        const fmApplyBtn = document.getElementById("fmApplyBtn");
+        const fmCancelBtn = document.getElementById("fmCancelBtn");
+        const imagePicker = document.getElementById("imagePicker");
+
+        const previewLoading = document.getElementById("previewLoading");
+
+        const fmFields = {
+            title: document.getElementById("fmTitle"),
+            subtitle: document.getElementById("fmSubtitle"),
+            paper: document.getElementById("fmPaper"),
+            orientation: document.getElementById("fmOrientation"),
+            tocDepth: document.getElementById("fmTocDepth"),
+            headingNumbering: document.getElementById("fmHeadingNumbering"),
+            paragraphIndent: document.getElementById("fmParagraphIndent"),
+            titlePage: document.getElementById("fmTitlePage"),
+            toc: document.getElementById("fmToc"),
+            revisionHistoryPage: document.getElementById("fmRevisionHistoryPage"),
+            marginTop: document.getElementById("fmMarginTop"),
+            marginRight: document.getElementById("fmMarginRight"),
+            marginBottom: document.getElementById("fmMarginBottom"),
+            marginLeft: document.getElementById("fmMarginLeft"),
+            cover: document.getElementById("fmCover"),
+            assetsBase: document.getElementById("fmAssetsBase"),
+            tocManual: document.getElementById("fmTocManual"),
+            revisionHistory: document.getElementById("fmRevisionHistory"),
+            rawMeta: document.getElementById("fmRawMeta"),
+        };
+
+        let currentPath = "";
+        let currentMeta = {};
+        let currentFrontmatterBlock = "";
+        let autoSaveTimer = null;
+        let previewTimer = null;
+        let isApplyingFrontmatter = false;
+        let syncingFromEditor = false;
+        let syncingFromPreview = false;
+        let previewMode = "html";
+        let previewPdfObjectUrl = "";
+        let highlightEnabled = false;
+
+        function escapeHtml(text) {
+            return String(text ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function applyEditorHighlightTheme(colors = {}) {
+            const map = {
+                heading1: "--editor-hl-heading1",
+                heading2: "--editor-hl-heading2",
+                heading3: "--editor-hl-heading3",
+                heading4: "--editor-hl-heading4",
+                heading5: "--editor-hl-heading5",
+                heading6: "--editor-hl-heading6",
+                headingMark: "--editor-hl-headingMark",
+                dslFence: "--editor-hl-dslFence",
+                dslType: "--editor-hl-dslType",
+                dslArgs: "--editor-hl-dslArgs",
+                dslLine: "--editor-hl-dslLine",
+                codeFence: "--editor-hl-codeFence",
+                codeLine: "--editor-hl-codeLine",
+                inlineCode: "--editor-hl-inlineCode",
+                link: "--editor-hl-link",
+                default: "--editor-hl-default",
+            };
+
+            for (const [key, varName] of Object.entries(map)) {
+                if (colors[key]) {
+                    document.documentElement.style.setProperty(varName, colors[key]);
+                }
+            }
+        }
+
+        async function loadEditorHighlightTheme() {
+            try {
+                const theme = await fetchJson("/api/editor-highlight-theme");
+                applyEditorHighlightTheme(theme.colors || {});
+            } catch (e) {
+                setStatus(`色テーマ読込失敗: ${e.message}`, true);
+            }
+        }
+
+        function highlightInline(text) {
+            let html = escapeHtml(text);
+            html = html.replace(/`([^`]+)`/g, '<span class="hl-inline-code">`$1`</span>');
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<span class="hl-link">[$1]($2)</span>');
+            return html;
+        }
+
+        function renderEditorHighlight() {
+            if (!highlightEnabled) {
+                editorHighlight.textContent = editor.value;
+                return;
+            }
+
+            const lines = editor.value.split(/\r?\n/);
+            const htmlLines = [];
+            let inCodeFence = false;
+            let inDslBlock = false;
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+
+                if (/^```/.test(trimmed)) {
+                    htmlLines.push(`<span class="hl-code-fence">${escapeHtml(line)}</span>`);
+                    inCodeFence = !inCodeFence;
+                    continue;
+                }
+
+                if (inCodeFence) {
+                    htmlLines.push(`<span class="hl-code-line">${escapeHtml(line)}</span>`);
+                    continue;
+                }
+
+                const dslClose = /^:::(?!\w)/.test(trimmed);
+                const dslOpen = line.match(/^(\s*):::(\w+)(.*)$/);
+                if (dslOpen) {
+                    const indent = escapeHtml(dslOpen[1] || "");
+                    const dslType = escapeHtml(dslOpen[2] || "");
+                    const dslArgs = escapeHtml(dslOpen[3] || "");
+                    htmlLines.push(`${indent}<span class="hl-dsl-fence">:::</span><span class="hl-dsl-type">${dslType}</span><span class="hl-dsl-args">${dslArgs}</span>`);
+                    inDslBlock = true;
+                    continue;
+                }
+                if (dslClose) {
+                    htmlLines.push(`<span class="hl-dsl-fence">${escapeHtml(line)}</span>`);
+                    inDslBlock = false;
+                    continue;
+                }
+
+                if (inDslBlock) {
+                    htmlLines.push(`<span class="hl-dsl-line">${highlightInline(line)}</span>`);
+                    continue;
+                }
+
+                const h = line.match(/^(#{1,6})(\s+)(.*)$/);
+                if (h) {
+                    const level = Math.max(1, Math.min(6, h[1].length));
+                    const mark = escapeHtml(h[1]);
+                    const space = escapeHtml(h[2]);
+                    const body = highlightInline(h[3]);
+                    htmlLines.push(`<span class="hl-heading-mark">${mark}</span>${space}<span class="hl-heading-${level}">${body}</span>`);
+                    continue;
+                }
+
+                htmlLines.push(`<span class="hl-plain">${highlightInline(line)}</span>`);
+            }
+            editorHighlight.innerHTML = htmlLines.join("\n") + "\n";
+            editorHighlight.scrollTop = editor.scrollTop;
+            editorHighlight.scrollLeft = editor.scrollLeft;
+        }
+
+        function setHighlightEnabled(enabled) {
+            highlightEnabled = !!enabled;
+            editor.classList.toggle("with-highlight", highlightEnabled);
+            editorHighlight.style.display = highlightEnabled ? "block" : "none";
+            if (!highlightEnabled) {
+                editor.style.color = "#17243c";
+            }
+            renderEditorHighlight();
+        }
+
+        function setStatus(text, isError = false) {
+            statusEl.textContent = text;
+            statusEl.style.color = isError ? "#b91c1c" : "#4d617f";
+        }
+
+        async function fetchJson(url, options) {
+            const res = await fetch(url, options);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || "request failed");
+            }
+            return data;
+        }
+
+        function getFullContent() {
+            return currentFrontmatterBlock + editor.value;
+        }
+
+        function setLoading(show, text = "処理中...") {
+            loadingOverlay.style.display = show ? "flex" : "none";
+            loadingText.textContent = text;
+        }
+
+        function debounce(fn, ms, key) {
+            if (key === "save") {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(fn, ms);
+                return;
+            }
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(fn, ms);
+        }
+
+        async function loadDirectories(selected = "") {
+            const data = await fetchJson("/api/directories");
+            dirSelect.innerHTML = "";
+            for (const dir of data.directories) {
+                const opt = document.createElement("option");
+                opt.value = dir.workspacePath;
+                opt.textContent = dir.workspacePath;
+                dirSelect.appendChild(opt);
+            }
+            const hasSelected = selected && data.directories.some((d) => d.workspacePath === selected);
+            const value = hasSelected ? selected : (data.currentBaseDir || dirSelect.options[0]?.value || "");
+            if (value) dirSelect.value = value;
+        }
+
+        async function loadFiles(selectPath = "") {
+            const data = await fetchJson("/api/files");
+            fileSelect.innerHTML = "";
+            for (const file of data.files) {
+                const opt = document.createElement("option");
+                opt.value = file.workspacePath;
+                opt.textContent = file.basePath;
+                fileSelect.appendChild(opt);
+            }
+            const target = selectPath && data.files.some((f) => f.workspacePath === selectPath)
+                ? selectPath
+                : data.files[0]?.workspacePath || "";
+            if (!target) {
+                currentPath = "";
+                editor.value = "";
+                setStatus("対象ディレクトリにMarkdownがありません", true);
+                return;
+            }
+            fileSelect.value = target;
+            await loadFile(target);
+            setStatus(`ディレクトリ反映: ${data.baseDir}`);
+        }
+
+        async function parseFrontmatter(content) {
+            return fetchJson("/api/frontmatter/parse", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content }),
+            });
+        }
+
+        async function applyFrontmatter(content, meta) {
+            return fetchJson("/api/frontmatter/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content, meta }),
+            });
+        }
+
+        function fillFrontmatterForm(meta) {
+            fmFields.title.value = meta.title || "";
+            fmFields.subtitle.value = meta.subtitle || "";
+            fmFields.paper.value = meta.paper || "A4";
+            fmFields.orientation.value = meta.orientation || "portrait";
+            fmFields.tocDepth.value = meta.tocDepth ?? "";
+            const headingNumbering = meta.headingNumbering ?? meta.heading?.numbering;
+            fmFields.headingNumbering.value = headingNumbering === true ? "true" : headingNumbering === false ? "false" : "";
+            fmFields.titlePage.checked = meta.titlePage !== false;
+            fmFields.toc.checked = meta.toc !== false;
+            fmFields.revisionHistoryPage.checked = meta.revisionHistoryPage !== false;
+            fmFields.paragraphIndent.value = meta.paragraphIndent === true ? "true" : meta.paragraphIndent === false ? "false" : "";
+            fmFields.marginTop.value = meta.margin?.top || "";
+            fmFields.marginRight.value = meta.margin?.right || "";
+            fmFields.marginBottom.value = meta.margin?.bottom || "";
+            fmFields.marginLeft.value = meta.margin?.left || "";
+            fmFields.cover.value = meta.cover || "";
+            fmFields.assetsBase.value = meta.assetsBase || "";
+            fmFields.tocManual.value = Array.isArray(meta.tocManual)
+                ? meta.tocManual.map((v) => String(v ?? "")).join("\n")
+                : (meta.tocManual || "");
+            fmFields.revisionHistory.value = Array.isArray(meta.revisionHistory)
+                ? JSON.stringify(meta.revisionHistory, null, 2)
+                : "";
+            fmFields.rawMeta.value = JSON.stringify(meta || {}, null, 2);
+        }
+
+        function readFrontmatterForm() {
+            let next = {};
+            const rawMetaText = fmFields.rawMeta.value.trim();
+            if (rawMetaText) {
+                try {
+                    const parsedRaw = JSON.parse(rawMetaText);
+                    if (!parsedRaw || typeof parsedRaw !== "object" || Array.isArray(parsedRaw)) {
+                        throw new Error("高度設定はJSONオブジェクトで入力してください");
+                    }
+                    next = { ...parsedRaw };
+                } catch (e) {
+                    throw new Error(`高度設定(JSON)の解析に失敗: ${e.message}`);
+                }
+            }
+
+            function setOrDelete(obj, key, value) {
+                if (value === "" || value === undefined || value === null) delete obj[key];
+                else obj[key] = value;
+            }
+
+            setOrDelete(next, "title", fmFields.title.value.trim());
+            setOrDelete(next, "subtitle", fmFields.subtitle.value.trim());
+            setOrDelete(next, "paper", fmFields.paper.value.trim());
+            setOrDelete(next, "orientation", fmFields.orientation.value.trim());
+            next.titlePage = fmFields.titlePage.checked;
+            next.toc = fmFields.toc.checked;
+            next.revisionHistoryPage = fmFields.revisionHistoryPage.checked;
+            if (fmFields.tocDepth.value.trim()) next.tocDepth = Number(fmFields.tocDepth.value.trim());
+            else delete next.tocDepth;
+
+            if (fmFields.headingNumbering.value === "true") next.headingNumbering = true;
+            else if (fmFields.headingNumbering.value === "false") next.headingNumbering = false;
+            else delete next.headingNumbering;
+
+            if (fmFields.paragraphIndent.value === "true") next.paragraphIndent = true;
+            else if (fmFields.paragraphIndent.value === "false") next.paragraphIndent = false;
+            else delete next.paragraphIndent;
+
+            const margin = {
+                top: fmFields.marginTop.value.trim(),
+                right: fmFields.marginRight.value.trim(),
+                bottom: fmFields.marginBottom.value.trim(),
+                left: fmFields.marginLeft.value.trim(),
+            };
+            if (margin.top || margin.right || margin.bottom || margin.left) {
+                next.margin = {};
+                if (margin.top) next.margin.top = margin.top;
+                if (margin.right) next.margin.right = margin.right;
+                if (margin.bottom) next.margin.bottom = margin.bottom;
+                if (margin.left) next.margin.left = margin.left;
+            } else {
+                delete next.margin;
+            }
+
+            const tocManualText = fmFields.tocManual.value.trim();
+            if (tocManualText) next.tocManual = tocManualText;
+            else delete next.tocManual;
+
+            const revisionHistoryText = fmFields.revisionHistory.value.trim();
+            if (revisionHistoryText) {
+                try {
+                    const parsed = JSON.parse(revisionHistoryText);
+                    if (!Array.isArray(parsed)) {
+                        throw new Error("revisionHistory はJSON配列で入力してください");
+                    }
+                    next.revisionHistory = parsed;
+                } catch (e) {
+                    throw new Error(`revisionHistory(JSON)の解析に失敗: ${e.message}`);
+                }
+            } else {
+                delete next.revisionHistory;
+            }
+
+            setOrDelete(next, "cover", fmFields.cover.value.trim());
+            setOrDelete(next, "assetsBase", fmFields.assetsBase.value.trim());
+            return next;
+        }
+
+        function showFrontmatterModal(show) {
+            fmBackdrop.style.display = show ? "flex" : "none";
+        }
+
+        async function loadFile(path) {
+            setLoading(true, "ファイル読込中...");
+            try {
+                const data = await fetchJson(`/api/file?path=${encodeURIComponent(path)}`);
+                currentPath = data.path;
+                // フロントマターブロックを抽出し、本文のみをエディタに表示
+                const blockMatch = data.content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n\n?/);
+                currentFrontmatterBlock = blockMatch ? blockMatch[0] : "";
+                editor.value = data.content.slice(currentFrontmatterBlock.length);
+                renderEditorHighlight();
+                const fm = await parseFrontmatter(data.content);
+                currentMeta = fm.meta || {};
+                fillFrontmatterForm(currentMeta);
+                previewMode = "html";
+                htmlPreviewBtn.classList.add("active");
+                pdfPreviewBtn.classList.remove("active");
+                schedulePreview();
+                setStatus(`読込: ${currentPath}`);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function saveNow() {
+            if (!currentPath) return;
+            await fetchJson("/api/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: currentPath, content: getFullContent() }),
+            });
+        }
+
+        function scheduleAutoSave() {
+            debounce(async () => {
+                try {
+                    await saveNow();
+                    setStatus(`自動保存: ${currentPath}`);
+                } catch (e) {
+                    setStatus(`自動保存失敗: ${e.message}`, true);
+                }
+            }, 500, "save");
+        }
+
+        function bindPreviewScrollSync() {
+            if (previewMode !== "html") return;
+            const win = preview.contentWindow;
+            const doc = preview.contentDocument;
+            if (!win || !doc) return;
+
+            win.addEventListener("scroll", () => {
+                if (syncingFromEditor) return;
+                const max = Math.max(1, doc.documentElement.scrollHeight - win.innerHeight);
+                const ratio = win.scrollY / max;
+                syncingFromPreview = true;
+                const editorMax = Math.max(1, editor.scrollHeight - editor.clientHeight);
+                editor.scrollTop = ratio * editorMax;
+                syncingFromPreview = false;
+            }, { passive: true });
+        }
+
+        function syncPreviewFromEditor() {
+            if (previewMode !== "html") return;
+            const win = preview.contentWindow;
+            const doc = preview.contentDocument;
+            if (!win || !doc) return;
+            if (syncingFromPreview) return;
+
+            const editorMax = Math.max(1, editor.scrollHeight - editor.clientHeight);
+            const ratio = editor.scrollTop / editorMax;
+            const previewMax = Math.max(1, doc.documentElement.scrollHeight - win.innerHeight);
+            syncingFromEditor = true;
+            win.scrollTo({ top: ratio * previewMax, behavior: "auto" });
+            syncingFromEditor = false;
+        }
+
+        function schedulePreview() {
+            previewLoading.style.display = "flex";
+            debounce(async () => {
+                if (!currentPath) { previewLoading.style.display = "none"; return; }
+                if (previewMode !== "html") { previewLoading.style.display = "none"; return; }
+                try {
+                    const data = await fetchJson("/api/preview", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ path: currentPath, content: getFullContent() }),
+                    });
+                    if (previewPdfObjectUrl) {
+                        URL.revokeObjectURL(previewPdfObjectUrl);
+                        previewPdfObjectUrl = "";
+                    }
+                    preview.removeAttribute("src");
+                    preview.srcdoc = data.html;
+                    if (data.warnings && data.warnings.length > 0) {
+                        setStatus(`警告: ${data.warnings.join(" / ")}`, true);
+                    }
+                } catch (e) {
+                    setStatus(`プレビュー失敗: ${e.message}`, true);
+                } finally {
+                    previewLoading.style.display = "none";
+                }
+            }, 250, "preview");
+        }
+
+        async function previewConvertedPdf() {
+            if (!currentPath) return;
+            setLoading(true, "PDFプレビュー生成中...");
+            try {
+                setStatus("PDF変換プレビュー生成中...");
+                await saveNow();
+                const data = await fetchJson("/api/export-pdf", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: currentPath, content: getFullContent() }),
+                });
+
+                const bytes = Uint8Array.from(atob(data.dataBase64), (c) => c.charCodeAt(0));
+                const blob = new Blob([bytes], { type: "application/pdf" });
+                if (previewPdfObjectUrl) URL.revokeObjectURL(previewPdfObjectUrl);
+                previewPdfObjectUrl = URL.createObjectURL(blob);
+
+                previewMode = "pdf";
+                preview.removeAttribute("srcdoc");
+                preview.src = previewPdfObjectUrl;
+                pdfPreviewBtn.classList.add("active");
+                htmlPreviewBtn.classList.remove("active");
+                setStatus(`PDF変換プレビュー表示中: ${data.fileName}`);
+            } catch (e) {
+                setStatus(`PDFプレビュー失敗: ${e.message}`, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function backToHtmlPreview() {
+            previewMode = "html";
+            htmlPreviewBtn.classList.add("active");
+            pdfPreviewBtn.classList.remove("active");
+            schedulePreview();
+            setStatus("HTMLプレビューに戻しました");
+        }
+
+        function hideMenu() {
+            ctxMenu.style.display = "none";
+        }
+
+        function fallbackInsertAtCursor(text) {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const before = editor.value.slice(0, start);
+            const after = editor.value.slice(end);
+            editor.value = before + text + after;
+            const nextPos = start + text.length;
+            editor.setSelectionRange(nextPos, nextPos);
+        }
+
+        function insertAtCursor(text) {
+            const keepTop = editor.scrollTop;
+            editor.focus();
+
+            let inserted = false;
+            try {
+                if (document.queryCommandSupported && document.queryCommandSupported("insertText")) {
+                    inserted = document.execCommand("insertText", false, text);
+                }
+            } catch {
+                inserted = false;
+            }
+
+            if (!inserted) {
+                fallbackInsertAtCursor(text);
+                editor.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+
+            requestAnimationFrame(() => {
+                editor.scrollTop = keepTop;
+            });
+        }
+
+        async function exportPdf() {
+            if (!currentPath) return;
+            setLoading(true, "PDF生成中...");
+            try {
+                setStatus("PDF生成中...");
+                await saveNow();
+                const data = await fetchJson("/api/export-pdf", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: currentPath, content: getFullContent() }),
+                });
+
+                const bytes = Uint8Array.from(atob(data.dataBase64), (c) => c.charCodeAt(0));
+                if (window.showSaveFilePicker) {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: data.fileName || "output.pdf",
+                        types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(bytes);
+                    await writable.close();
+                    setStatus(`PDF保存: ${data.fileName}`);
+                } else {
+                    const blob = new Blob([bytes], { type: "application/pdf" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = data.fileName || "output.pdf";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(a.href);
+                    setStatus(`PDFダウンロード: ${data.fileName}`);
+                }
+            } catch (e) {
+                setStatus(`PDF化に失敗: ${e.message}`, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function uploadImageFromDialog(file) {
+            if (!file || !currentPath) return;
+            const reader = new FileReader();
+            const dataUrl = await new Promise((resolvePromise, rejectPromise) => {
+                reader.onload = () => resolvePromise(String(reader.result || ""));
+                reader.onerror = () => rejectPromise(new Error("画像の読み込みに失敗しました"));
+                reader.readAsDataURL(file);
+            });
+
+            const payload = await fetchJson("/api/upload-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    path: currentPath,
+                    fileName: file.name,
+                    dataUrl,
+                }),
+            });
+
+            const caption = prompt("キャプション", "図のキャプション") ?? "";
+            insertAtCursor(`\n:::figure width=80%\n![img](${payload.markdownPath})\n\n${caption}\n:::\n`);
+        }
+
+        editor.addEventListener("input", async () => {
+            if (isApplyingFrontmatter) return;
+            renderEditorHighlight();
+            scheduleAutoSave();
+            schedulePreview();
+        });
+
+        editor.addEventListener("scroll", () => {
+            editorHighlight.scrollTop = editor.scrollTop;
+            editorHighlight.scrollLeft = editor.scrollLeft;
+            syncPreviewFromEditor();
+        }, { passive: true });
+
+        editorHighlightToggle.addEventListener("change", () => {
+            localStorage.setItem("convertGui.editorHighlightEnabled", editorHighlightToggle.checked ? "1" : "0");
+            setHighlightEnabled(editorHighlightToggle.checked);
+        });
+
+        preview.addEventListener("load", () => {
+            bindPreviewScrollSync();
+            syncPreviewFromEditor();
+        });
+
+        dirSelect.addEventListener("change", async () => {
+            setLoading(true, "ディレクトリ切替中...");
+            try {
+                const result = await fetchJson("/api/directories", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ baseDir: dirSelect.value }),
+                });
+                await loadDirectories(result.baseDir);
+                await loadFiles();
+            } catch (e) {
+                setStatus(`ディレクトリ変更失敗: ${e.message}`, true);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        fileSelect.addEventListener("change", async () => {
+            try {
+                await loadFile(fileSelect.value);
+            } catch (e) {
+                setStatus(`ファイル読込失敗: ${e.message}`, true);
+            }
+        });
+
+        fmBtn.addEventListener("click", () => {
+            fillFrontmatterForm(currentMeta || {});
+            showFrontmatterModal(true);
+        });
+
+        fmCancelBtn.addEventListener("click", () => showFrontmatterModal(false));
+        fmBackdrop.addEventListener("click", (ev) => {
+            if (ev.target === fmBackdrop) showFrontmatterModal(false);
+        });
+
+        fmApplyBtn.addEventListener("click", async () => {
+            setLoading(true, "フロントマター反映中...");
+            try {
+                const nextMeta = readFrontmatterForm();
+                isApplyingFrontmatter = true;
+                // 本文のみを渡す（フロントマターなし）、サーバが新しいフロントマターを先頭に付けて返す
+                const next = await applyFrontmatter(editor.value, nextMeta);
+                const blockMatch = next.content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n\n?/);
+                currentFrontmatterBlock = blockMatch ? blockMatch[0] : "";
+                // editor.value（本文）は変わらない
+                currentMeta = nextMeta;
+                showFrontmatterModal(false);
+                scheduleAutoSave();
+                schedulePreview();
+                setStatus("フロントマター反映済み");
+            } catch (e) {
+                setStatus(`フロントマター反映失敗: ${e.message}`, true);
+            } finally {
+                isApplyingFrontmatter = false;
+                setLoading(false);
+            }
+        });
+
+        pdfPreviewBtn.addEventListener("click", async () => {
+            await previewConvertedPdf();
+        });
+
+        htmlPreviewBtn.addEventListener("click", () => {
+            backToHtmlPreview();
+        });
+
+        pdfBtn.addEventListener("click", () => exportPdf());
+
+        editor.addEventListener("contextmenu", (ev) => {
+            ev.preventDefault();
+            ctxMenu.style.left = ev.clientX + "px";
+            ctxMenu.style.top = ev.clientY + "px";
+            ctxMenu.style.display = "block";
+        });
+
+        document.addEventListener("click", (ev) => {
+            if (!ctxMenu.contains(ev.target)) hideMenu();
+        });
+
+        ctxMenu.addEventListener("click", async (ev) => {
+            const item = ev.target.closest(".context-item");
+            if (!item) return;
+            const action = item.dataset.action;
+            hideMenu();
+
+            if (action === "insert-pagebreak") {
+                insertAtCursor("\n:::pagebreak\n:::\n");
+                return;
+            }
+
+            if (action === "insert-image") {
+                imagePicker.value = "";
+                imagePicker.click();
+                return;
+            }
+
+            if (action === "insert-mermaid") {
+                insertAtCursor("\n:::figure width=80%\n```mermaid\nflowchart LR\n    A[入力] --> B[処理] --> C[出力]\n```\nMermaid図\n:::\n");
+            }
+        });
+
+        imagePicker.addEventListener("change", async () => {
+            const file = imagePicker.files && imagePicker.files[0];
+            if (!file) return;
+            try {
+                await uploadImageFromDialog(file);
+            } catch (e) {
+                setStatus(`画像挿入失敗: ${e.message}`, true);
+            }
+        });
+
+        window.addEventListener("keydown", async (ev) => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "s") {
+                ev.preventDefault();
+                try {
+                    await saveNow();
+                    setStatus("手動保存完了");
+                } catch (e) {
+                    setStatus(`保存失敗: ${e.message}`, true);
+                }
+            }
+        });
+
+        (async () => {
+            try {
+                await loadEditorHighlightTheme();
+                const saved = localStorage.getItem("convertGui.editorHighlightEnabled");
+                const initialEnabled = saved === null ? true : saved === "1";
+                editorHighlightToggle.checked = initialEnabled;
+                setHighlightEnabled(initialEnabled);
+                await loadDirectories();
+                await loadFiles();
+                setStatus("準備完了（自動保存オン）");
+            } catch (e) {
+                setStatus(`保存失敗: ${e.message}`, true);
+            }
+        })();
+    </script>
+</body>
+
+</html>

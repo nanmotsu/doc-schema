@@ -4,6 +4,15 @@ subtitle: 手入力目次とコード図番号のサンプル
 toc: true
 titlePage: false
 revisionHistoryPage: false
+paper: A4
+orientation: portrait
+margin:
+  top: 18mm
+  right: 12mm
+  bottom: 15mm
+  left: 15mm
+tocDepth: 3
+paragraphIndent: true
 tocManual: |
   - 1. はじめに ................................ 1
   - 2. 手入力目次の設定 ........................ 2

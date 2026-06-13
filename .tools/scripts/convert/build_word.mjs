@@ -1,10 +1,10 @@
 /**
- * Markdown → Word (.docx) ビルドスクリプト
+ * Markdown -> Word (.docx) ビルドスクリプト
  *
  * Usage:
  *   node build_word.mjs <input.md>
  *
- * マークダウンが正。DSLブロック・Mermaidダイアグラム（PNG埋め込み）対応。
+ * Markdown が正。DSL ブロック・Mermaid ダイアグラムの PNG 埋め込みに対応。
  * コードブロックは等幅フォントで出力（シンタックスハイライトなし）。
  */
 import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
@@ -41,7 +41,7 @@ function findSystemChrome() {
 }
 const CHROME_EXECUTABLE = findSystemChrome();
 
-// ── フロントマターパーサー ────────────────────────────────────
+// ── フロントマターパーサー ───────────────────────────────────
 function parseFrontmatter(markdown) {
     const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
     if (!match) return { meta: {}, body: markdown };
@@ -53,7 +53,7 @@ function parseFrontmatter(markdown) {
     }
 }
 
-// ── HTML エスケープ ──────────────────────────────────────────
+// ── HTML エスケープ ─────────────────────────────────────────
 function escapeHtml(text) {
     return String(text ?? "")
         .replace(/&/g, "&amp;")
@@ -188,7 +188,7 @@ function applyCaptionNumbersToWordHtml(html, headingCfg, dslCfg) {
     });
 }
 
-// ── ローカル画像を data URI に変換（メモリ内で保持）─────────────────────
+// ── ローカル画像を data URI に変換（メモリ上で保持） ──────────────────
 function resolveImagesToDataUri(html) {
     return html.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
         if (/^data:/i.test(src)) return pre + src + post;
@@ -217,15 +217,15 @@ function resolveImagesToDataUri(html) {
     });
 }
 
-// ── data URI 画像をローカル HTTP サーバーで配信（html-to-docx 用）──────
-// html-to-docx は data: スキームを有効URLとして誤認識し、
+// ── data URI 画像をローカル HTTP サーバーで配信（html-to-docx 用） ────
+// html-to-docx は data: スキームを有効 URL として誤認識し、
 // imageToBase64_min() がダウンロードに失敗するため、
-// 一時HTTPサーバーで画像を配信して安全に処理させる。
+// 一時 HTTP サーバーで画像を配信して安定的に処理させる。
 async function serveImagesViaHttp(html) {
     const imageStore = new Map(); // id -> { mime, buffer }
     let imgIdx = 0;
 
-    // data: URI を収集してプレースホルダーに置換（portはまだ未定）
+    // data: URI を収集してプレースホルダーに置換（port はまだ未定）
     const placeholderHtml = html.replace(/src="data:([^;]+);base64,([^"]+)"/g, (_, mime, base64) => {
         const id = imgIdx++;
         const subtype = mime.split("/")[1] || "png";
@@ -235,7 +235,7 @@ async function serveImagesViaHttp(html) {
     });
 
     if (imgIdx === 0) {
-        // 画像なし → サーバー不要
+        // 画像がなければサーバー不要
         return { html, cleanup: async () => { } };
     }
 
@@ -349,15 +349,15 @@ const docxFileName = resolveOutputFileName(meta, "docxFileName", `${baseName}.do
 ensureExistingDirectory(docxDir, "docxOutputDir");
 const docxPath = join(docxDir, docxFileName);
 
-// アセットルート解決（フロントマターの assetsInternal を起点に相対パスを解決）
-const internalRaw = meta.assetsInternal ?? null;
-const assetsBaseAbs = internalRaw ? resolve(WORKSPACE_ROOT, internalRaw) : srcDir;
+// Resolve asset base directory from frontmatter assetsBase.
+const assetsBaseRaw = meta.assetsBase ?? null;
+const assetsBaseAbs = assetsBaseRaw ? resolve(WORKSPACE_ROOT, assetsBaseRaw) : srcDir;
 const assetsCtx = { assetsBaseAbs };
 
-// ── DSL 変換 + Markdown → HTML ────────────────────────────
+// ── DSL 変換 + Markdown -> HTML ───────────────────────────
 let processedBodyHtml = transformDSL(numberedBody, parseMd, assetsCtx);
 
-// ── Mermaid ブロックをプレースホルダーに置換 ──────────────────
+// ── Mermaid ブロックをプレースホルダーに置換 ───────────────────
 const mermaidBlocks = [];
 const mermaidBlockRegex = /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g;
 processedBodyHtml = processedBodyHtml.replace(mermaidBlockRegex, (_, code) => {
@@ -372,7 +372,7 @@ processedBodyHtml = processedBodyHtml.replace(mermaidBlockRegex, (_, code) => {
     return `__MERMAID_${idx}__`;
 });
 
-// ── Mermaid → PNG（Puppeteer でレンダリング）────────────────
+// ── Mermaid -> PNG（Puppeteer でレンダリング） ────────────────
 if (mermaidBlocks.length > 0) {
     console.log(`Mermaid ダイアグラム ${mermaidBlocks.length} 件を PNG に変換中...`);
     const { default: puppeteer } = await import("puppeteer");
@@ -406,7 +406,7 @@ body { margin: 0; padding: 8px; background: white; }
                 return await window.mermaid.render(`mw${i}`, c);
             }, code, idx);
 
-            // SVG を DOM に挿入してスクリーンショット（PNG）
+            // SVG を DOM に挿入してスクリーンショットを PNG 化
             await page.evaluate((svgStr) => {
                 document.body.innerHTML = svgStr;
             }, svg);
@@ -432,7 +432,7 @@ body { margin: 0; padding: 8px; background: white; }
     await browser.close();
 }
 
-// ── 通常画像の相対パス → file:/// 絶対パスに解決 ──────────────
+// ── 通常画像の相対パスを file:/// 絶対パスに解決 ───────────────
 processedBodyHtml = processedBodyHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/gi, (_, pre, src, post) => {
     if (/^(https?:|file:|data:)/i.test(src)) return pre + src + post;
     const clean = src.replace(/^\.\//, "");
@@ -442,7 +442,7 @@ processedBodyHtml = processedBodyHtml.replace(/(<img\b[^>]*?\bsrc=")([^"]+)(")/g
 // Word では CSS カウンターが効かないため、キャプション番号を本文へ埋め込む。
 processedBodyHtml = applyCaptionNumbersToWordHtml(processedBodyHtml, styleConfig.heading, dslConfig);
 
-// ── file:/// 画像を data URI に変換（メモリ内）─
+// ── file:/// 画像を data URI に変換（メモリ上） ────────────────
 processedBodyHtml = resolveImagesToDataUri(processedBodyHtml);
 
 // ── タイトル ──────────────────────────────────────────────
@@ -450,8 +450,8 @@ const title = meta.title || resolvedBody.match(/^#\s+(.+)/m)?.[1] || baseName;
 
 // ── DOCX 用 HTML 組み立て ─────────────────────────────────
 // html-to-docx はクラスベース CSS を完全にはサポートしないため、
-// DSLブロックのスタイルはインラインで補完する。
-// コードブロックは <pre> の inline style で等幅フォントを指定。
+// DSL ブロックのスタイルはインラインで補完する。
+// コードブロックは <pre> の inline style で等幅フォントを維持する。
 const docxHtml = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -480,7 +480,7 @@ ${processedBodyHtml
                 : "";
             return bodyBlock + capBlock;
         })
-        // 画像: max-width:100%[;width:X][;height:Y] → width:X（または100%）に変換
+        // 画像 max-width:100%[;width:X][;height:Y] を width:X または 100% に変換
         .replace(/<img([^>]*?)style="max-width:100%(?:;([^"]*))?"([^>]*?)>/gi, (_, before, rest, after) => {
             const widthMatch = rest?.match(/width:([^;]+)/);
             const heightMatch = rest?.match(/height:([^;]+)/);
@@ -488,7 +488,7 @@ ${processedBodyHtml
             const heightStyle = heightMatch ? `;height:${heightMatch[1]}` : '';
             return `<img${before}style="${widthStyle}${heightStyle}"${after}>`;
         })
-        // コードブロック: 1行1<p>形式に変換（html-to-docx は <pre> 内の改行を保持しないため）
+        // コードブロック: 1行1<p>形式に変換（html-to-docx は <pre> 内改行を保持しないため）
         .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/g, (_, content) => {
             const monoStyle = "font-family:'Courier New','Consolas',monospace;font-size:9pt;margin:0;padding:2pt 0;";
             const lines = content.split('\n');
@@ -505,7 +505,7 @@ ${processedBodyHtml
                 return m.replace(/<table/, '<table style="border:0.6pt solid #999;border-collapse:collapse;margin-left:0;margin-right:auto;"');
             }
         })
-        // テーブルセル: 下paddingを除去し、全体を詰める
+        // テーブルセル: 下 padding を除去し、全体を詰める
         .replace(/<(td|th)([^>]*)>/gi, (_, tag, attrs) => {
             if (/\bstyle="/i.test(attrs)) {
                 return `<${tag}${attrs.replace(/\bstyle="([^"]*)"/i, (_m, s) => ` style="${s};padding-top:0;padding-bottom:0;border:0.6pt solid #999;"`)}>`;
@@ -514,25 +514,25 @@ ${processedBodyHtml
         })
         // table-caption は左寄せ
         .replace(/<p class="table-caption">/g, '<p class="table-caption" style="text-align:left;margin:0 0 4pt 0;">')
-        // DSL warningブロック: 左ボーダー+背景色
+        // DSL warning ブロック: 左ボーダー + 背景色
         .replace(/<div class="warning">/g, '<div style="color:#e67e00;background:#fff8f0;border-left:4px solid #e67e00;padding:6pt;">')
-        // DSL centerブロック
+        // DSL center ブロック
         .replace(/<div class="center">/g, '<div style="text-align:center;">')
-        // DSL rightブロック
+        // DSL right ブロック
         .replace(/<div class="right">/g, '<div style="text-align:right;">')
-        // DSL largeブロック
+        // DSL large ブロック
         .replace(/<div class="large">/g, '<div style="font-size:18pt;">')
-        // DSL redブロック
+        // DSL red ブロック
         .replace(/<div class="red">/g, '<div style="color:#cc0000;">')
-        // ページ区切り（page-breakクラスのdiv → Word改ページ）
+        // ページ区切り: page-break クラスの div を Word 改ページへ
         .replace(/<div class="page-break"><\/div>/g, '<div style="page-break-before:always;"></div>')
     }
 </body>
 </html>`;
 
 // ── html-to-docx バグ対策: <thead>/<tbody>/<tfoot> が存在すると
-// 各セクションの先頭行ごとに <w:tblGrid> が二重生成されて OOXML 違反になるため除去
-// （<th>/<td> セルのスタイルは保持される）
+// セクションの先頭行ごとに <w:tblGrid> が二重生成されて OOXML 違反になるため除去
+// ただし <th>/<td> セルのスタイルは保持される
 const docxHtmlFixed = docxHtml.replace(/<\/?(thead|tbody|tfoot)\b[^>]*>/gi, '');
 
 // ── data URI 画像をローカル HTTP サーバー経由で html-to-docx に渡す ──
@@ -559,7 +559,7 @@ const docxBuffer = await HTMLtoDOCX(docxHtmlForConvert, null, {
 
 await stopImageServer();
 
-// ── OOXML 修正: w:sectPr を w:body の最後に移動 ─────────────────────────
+// ── OOXML 修正: w:sectPr を w:body の最後に移動 ───────────────────────
 const fixedDocxBuffer = await (async () => {
     const JSZip = _require("jszip");
     const zip = await JSZip.loadAsync(docxBuffer);
@@ -568,7 +568,7 @@ const fixedDocxBuffer = await (async () => {
 
     let xml = await entry.async("string");
 
-    // w:body 直下の先頭にある w:sectPr を末尾の </w:body> 直前に移動
+    // w:body 直下先頭にある w:sectPr を末尾の </w:body> 直前に移動
     const bodyOpenIdx = xml.indexOf("<w:body>");
     if (bodyOpenIdx === -1) return docxBuffer;
 
@@ -594,4 +594,5 @@ const fixedDocxBuffer = await (async () => {
 })();
 
 writeFileSync(docxPath, fixedDocxBuffer);
-console.log(`✓ Word: ${docxPath}`);
+console.log(`出力Word: ${docxPath}`);
+

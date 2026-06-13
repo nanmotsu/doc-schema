@@ -268,6 +268,50 @@
             }
         },
         {
+            "label": "変換: GUI（起動）",
+            "type": "shell",
+            "command": "C:/Program Files/nodejs/node.exe",
+            "args": [
+                "${workspaceFolder}/.tools/scripts/convert/gui/gui.mjs",
+                "${workspaceFolder}/999_利用ガイド/変換サンプル"
+            ],
+            "problemMatcher": [ ],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "silent",
+                "panel": "dedicated",
+                "focus": false
+            }
+        },
+        {
+            "label": "変換: GUI（停止）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Get-NetTCPConnection -LocalPort 3355 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Host 'stopped'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "変換: GUI（ブラウザで開く）",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Start-Process 'http://localhost:3355'"
+            ],
+            "problemMatcher": [ ],
+            "presentation": {
+                "reveal": "never",
+                "panel": "shared"
+            }
+        },
+        {
             "label": "テスト: Excel生成（現在のフォルダ）",
             "type": "shell",
             "command": "C:/Program Files/nodejs/node.exe",
