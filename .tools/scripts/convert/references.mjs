@@ -36,7 +36,7 @@ function buildLabel(type, count, sectionNo, numberingEnabled, prefixMap) {
     if (numberingEnabled && sectionNo !== null && sectionNo !== undefined) {
         return `${prefix}${sectionNo}.${count}`;
     }
-    return `${prefix}${count}`;
+    return prefix || type;
 }
 
 /**

@@ -136,6 +136,104 @@
             background: #fff;
         }
 
+        .outline-sidebar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: min(300px, 82%);
+            transform: translateX(-103%);
+            transition: transform 0.2s ease;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            background: #f8fbff;
+            border-right: 1px solid #c9d5ea;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.2);
+        }
+
+        .outline-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .outline-sidebar-head {
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border-bottom: 1px solid #dde8fb;
+            background: #edf4ff;
+        }
+
+        .outline-sidebar-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334;
+        }
+
+        .outline-sidebar-close {
+            border: 1px solid #b8c7e4;
+            border-radius: 6px;
+            background: #fff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 26px;
+            height: 24px;
+            line-height: 1;
+        }
+
+        .outline-list {
+            flex: 1;
+            overflow: auto;
+            padding: 6px;
+            background: #f8fbff;
+        }
+
+        .outline-item {
+            width: 100%;
+            text-align: left;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            background: transparent;
+            padding: 6px 8px;
+            margin-bottom: 3px;
+            font-size: 12px;
+            color: #334155;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .outline-item:hover {
+            background: #eaf2ff;
+            border-color: #d1e1fb;
+        }
+
+        .outline-item.active {
+            background: #dceaff;
+            border-color: #90b7f0;
+            color: #12376d;
+            font-weight: 700;
+        }
+
+        .outline-item.level-1 {
+            padding-left: 8px;
+        }
+
+        .outline-item.level-2 {
+            padding-left: 18px;
+        }
+
+        .outline-empty {
+            padding: 10px 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
         #editorHighlight {
             position: absolute;
             inset: 0;
@@ -546,6 +644,7 @@
         <div class="panel-col">
             <div class="panel-bar">
                 <button id="fmBtn">フロントマター</button>
+                <button id="outlineBtn">見出し</button>
                 <label class="editor-highlight-toggle">
                     <input id="editorHighlightToggle" type="checkbox">
                     色付け
@@ -554,6 +653,13 @@
             <section class="panel">
                 <div class="panel-title">Markdown（右クリック: ページ区切り / 画像 / Mermaid）</div>
                 <div class="editor-wrap">
+                    <aside id="outlineSidebar" class="outline-sidebar" aria-label="見出しナビ">
+                        <div class="outline-sidebar-head">
+                            <span class="outline-sidebar-title">見出し（H1 / H2）</span>
+                            <button id="outlineCloseBtn" class="outline-sidebar-close" type="button">×</button>
+                        </div>
+                        <div id="outlineList" class="outline-list"></div>
+                    </aside>
                     <pre id="editorHighlight" aria-hidden="true"></pre>
                     <textarea id="editor" spellcheck="false"></textarea>
                 </div>
@@ -687,6 +793,10 @@
         const fmApplyBtn = document.getElementById("fmApplyBtn");
         const fmCancelBtn = document.getElementById("fmCancelBtn");
         const imagePicker = document.getElementById("imagePicker");
+        const outlineBtn = document.getElementById("outlineBtn");
+        const outlineSidebar = document.getElementById("outlineSidebar");
+        const outlineCloseBtn = document.getElementById("outlineCloseBtn");
+        const outlineList = document.getElementById("outlineList");
 
         const previewLoading = document.getElementById("previewLoading");
 
@@ -718,11 +828,15 @@
         let autoSaveTimer = null;
         let previewTimer = null;
         let isApplyingFrontmatter = false;
-        let syncingFromEditor = false;
-        let syncingFromPreview = false;
         let previewMode = "html";
         let previewPdfObjectUrl = "";
         let highlightEnabled = false;
+        let sourceSyncPoints = [];
+        let frontmatterLineOffset = 0;
+        let editorLineStarts = [0];
+        let editorLineHeightPx = 20;
+        let editorHeadings = [];
+        let activeHeadingLine = -1;
 
         function escapeHtml(text) {
             return String(text ?? "")
@@ -865,6 +979,10 @@
 
         function getFullContent() {
             return currentFrontmatterBlock + editor.value;
+        }
+
+        function countLineBreaks(text) {
+            return (String(text || "").match(/\r?\n/g) || []).length;
         }
 
         function setLoading(show, text = "処理中...") {
@@ -1052,8 +1170,11 @@
                 // フロントマターブロックを抽出し、本文のみをエディタに表示
                 const blockMatch = data.content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n\n?/);
                 currentFrontmatterBlock = blockMatch ? blockMatch[0] : "";
+                frontmatterLineOffset = countLineBreaks(currentFrontmatterBlock);
                 editor.value = data.content.slice(currentFrontmatterBlock.length);
+                recomputeEditorLineMetrics();
                 renderEditorHighlight();
+                refreshOutline();
                 const fm = await parseFrontmatter(data.content);
                 currentMeta = fm.meta || {};
                 fillFrontmatterForm(currentMeta);
@@ -1087,36 +1208,175 @@
             }, 500, "save");
         }
 
-        function bindPreviewScrollSync() {
-            if (previewMode !== "html") return;
-            const win = preview.contentWindow;
-            const doc = preview.contentDocument;
-            if (!win || !doc) return;
-
-            win.addEventListener("scroll", () => {
-                if (syncingFromEditor) return;
-                const max = Math.max(1, doc.documentElement.scrollHeight - win.innerHeight);
-                const ratio = win.scrollY / max;
-                syncingFromPreview = true;
-                const editorMax = Math.max(1, editor.scrollHeight - editor.clientHeight);
-                editor.scrollTop = ratio * editorMax;
-                syncingFromPreview = false;
-            }, { passive: true });
+        function recomputeEditorLineMetrics() {
+            const lines = editor.value.split(/\r?\n/);
+            editorLineStarts = [0];
+            for (const line of lines) {
+                editorLineStarts.push(editorLineStarts[editorLineStarts.length - 1] + line.length + 1);
+            }
+            const lh = Number.parseFloat(getComputedStyle(editor).lineHeight || "0");
+            if (Number.isFinite(lh) && lh > 0) {
+                editorLineHeightPx = lh;
+            }
         }
 
-        function syncPreviewFromEditor() {
-            if (previewMode !== "html") return;
+        function lineToEditorY(line) {
+            return Math.max(0, (Math.max(1, line) - 1) * editorLineHeightPx);
+        }
+
+        function lineToEditorOffset(line) {
+            const index = Math.max(0, Math.min(Math.max(1, line) - 1, editorLineStarts.length - 1));
+            return editorLineStarts[index] ?? 0;
+        }
+
+        function editorYToApproxLine(y) {
+            return Math.max(1, Math.round(y / Math.max(1, editorLineHeightPx)) + 1);
+        }
+
+        function parseEditorHeadings() {
+            const lines = editor.value.split(/\r?\n/);
+            const out = [];
+            let inCodeFence = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (/^```/.test(line)) {
+                    inCodeFence = !inCodeFence;
+                    continue;
+                }
+                if (inCodeFence) continue;
+
+                const m = line.match(/^(#{1,2})\s+(.+)$/);
+                if (!m) continue;
+                out.push({
+                    level: m[1].length,
+                    title: m[2].trim(),
+                    line: i + 1,
+                });
+            }
+            editorHeadings = out;
+        }
+
+        function renderOutline() {
+            if (!outlineList) return;
+            if (editorHeadings.length === 0) {
+                outlineList.innerHTML = '<div class="outline-empty">見出しがありません</div>';
+                return;
+            }
+
+            const html = editorHeadings.map((h) => {
+                const safeTitle = escapeHtml(h.title);
+                const level = Math.max(1, Math.min(6, h.level));
+                const activeClass = h.line === activeHeadingLine ? " active" : "";
+                return `<button type="button" class="outline-item level-${level}${activeClass}" data-line="${h.line}" title="${safeTitle}">${safeTitle}</button>`;
+            }).join("");
+            outlineList.innerHTML = html;
+        }
+
+        function setActiveHeading(line) {
+            activeHeadingLine = Number(line) || -1;
+            const prev = outlineList?.querySelector(".outline-item.active");
+            if (prev) prev.classList.remove("active");
+            const next = outlineList?.querySelector(`.outline-item[data-line="${activeHeadingLine}"]`);
+            if (next) next.classList.add("active");
+        }
+
+        function findNearestSourcePoint(targetLine) {
+            if (!sourceSyncPoints.length) return null;
+
+            let nearest = sourceSyncPoints[0];
+            let best = Math.abs(targetLine - nearest.editorLine);
+            for (let i = 1; i < sourceSyncPoints.length; i++) {
+                const p = sourceSyncPoints[i];
+                const d = Math.abs(targetLine - p.editorLine);
+                if (d < best) {
+                    best = d;
+                    nearest = p;
+                }
+            }
+            return nearest;
+        }
+
+        function jumpToHeadingLine(line) {
+            if (!Number.isFinite(line) || line <= 0) return;
+
+            const targetEditorY = lineToEditorY(line);
+            editor.scrollTop = Math.max(0, targetEditorY - editor.clientHeight * 0.2);
+            const offset = lineToEditorOffset(line);
+            editor.setSelectionRange(offset, offset);
+            editor.focus();
+
+            if (previewMode === "html") {
+                const win = preview.contentWindow;
+                const doc = preview.contentDocument;
+                if (win) {
+                    const sourceLine = line + frontmatterLineOffset;
+                    let targetTop = null;
+
+                    if (doc) {
+                        const exact = doc.querySelector(`h1[data-source-line="${sourceLine}"], h2[data-source-line="${sourceLine}"]`);
+                        if (exact) {
+                            targetTop = Math.max(0, Math.round(exact.getBoundingClientRect().top + win.scrollY));
+                        }
+                    }
+
+                    if (targetTop === null) {
+                        const point = findNearestSourcePoint(line);
+                        if (point) targetTop = point.previewY;
+                    }
+
+                    if (targetTop !== null) {
+                        const previewTarget = Math.max(0, targetTop - win.innerHeight * 0.2);
+                        win.scrollTo({ top: previewTarget, behavior: "auto" });
+                    }
+                }
+            }
+            setActiveHeading(line);
+        }
+
+        function findHeadingByLine(line) {
+            if (!editorHeadings.length) return null;
+            let current = null;
+            for (const h of editorHeadings) {
+                if (h.line > line) break;
+                current = h;
+            }
+            return current;
+        }
+
+        function refreshOutline() {
+            parseEditorHeadings();
+            renderOutline();
+            const approxLine = editorYToApproxLine(editor.scrollTop + editor.clientHeight * 0.2);
+            const current = findHeadingByLine(approxLine);
+            setActiveHeading(current ? current.line : -1);
+        }
+
+        function buildSourceSyncPoints() {
             const win = preview.contentWindow;
             const doc = preview.contentDocument;
-            if (!win || !doc) return;
-            if (syncingFromPreview) return;
+            if (!win || !doc || !doc.body) {
+                sourceSyncPoints = [];
+                return;
+            }
 
-            const editorMax = Math.max(1, editor.scrollHeight - editor.clientHeight);
-            const ratio = editor.scrollTop / editorMax;
-            const previewMax = Math.max(1, doc.documentElement.scrollHeight - win.innerHeight);
-            syncingFromEditor = true;
-            win.scrollTo({ top: ratio * previewMax, behavior: "auto" });
-            syncingFromEditor = false;
+            const nodes = Array.from(doc.querySelectorAll("h1[data-source-line], h2[data-source-line]"));
+            const points = nodes
+                .map((el) => {
+                    const sourceLine = Number.parseInt(el.getAttribute("data-source-line") || "", 10);
+                    if (!Number.isFinite(sourceLine) || sourceLine <= 0) return null;
+                    const top = Math.max(0, Math.round(el.getBoundingClientRect().top + win.scrollY));
+                    return {
+                        sourceLine,
+                        editorLine: Math.max(1, sourceLine - frontmatterLineOffset),
+                        editorY: lineToEditorY(Math.max(1, sourceLine - frontmatterLineOffset)),
+                        previewY: top,
+                    };
+                })
+                .filter(Boolean)
+                .sort((a, b) => a.editorLine - b.editorLine);
+
+            sourceSyncPoints = points;
         }
 
         function schedulePreview() {
@@ -1288,6 +1548,8 @@
         editor.addEventListener("input", async () => {
             if (isApplyingFrontmatter) return;
             renderEditorHighlight();
+            recomputeEditorLineMetrics();
+            refreshOutline();
             scheduleAutoSave();
             schedulePreview();
         });
@@ -1295,7 +1557,9 @@
         editor.addEventListener("scroll", () => {
             editorHighlight.scrollTop = editor.scrollTop;
             editorHighlight.scrollLeft = editor.scrollLeft;
-            syncPreviewFromEditor();
+            const approxLine = editorYToApproxLine(editor.scrollTop + editor.clientHeight * 0.2);
+            const current = findHeadingByLine(approxLine);
+            setActiveHeading(current ? current.line : -1);
         }, { passive: true });
 
         editorHighlightToggle.addEventListener("change", () => {
@@ -1304,8 +1568,38 @@
         });
 
         preview.addEventListener("load", () => {
-            bindPreviewScrollSync();
-            syncPreviewFromEditor();
+            buildSourceSyncPoints();
+        });
+
+        function openOutlineSidebar() {
+            outlineSidebar.classList.add("open");
+        }
+
+        function closeOutlineSidebar() {
+            outlineSidebar.classList.remove("open");
+        }
+
+        outlineBtn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            if (outlineSidebar.classList.contains("open")) {
+                closeOutlineSidebar();
+                return;
+            }
+            refreshOutline();
+            openOutlineSidebar();
+        });
+
+        outlineCloseBtn.addEventListener("click", () => {
+            closeOutlineSidebar();
+        });
+
+        outlineList.addEventListener("click", (ev) => {
+            const btn = ev.target.closest(".outline-item");
+            if (!btn) return;
+            const line = Number.parseInt(btn.dataset.line || "", 10);
+            if (!Number.isFinite(line)) return;
+            jumpToHeadingLine(line);
+            closeOutlineSidebar();
         });
 
         dirSelect.addEventListener("change", async () => {
@@ -1352,6 +1646,7 @@
                 const next = await applyFrontmatter(editor.value, nextMeta);
                 const blockMatch = next.content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n\n?/);
                 currentFrontmatterBlock = blockMatch ? blockMatch[0] : "";
+                frontmatterLineOffset = countLineBreaks(currentFrontmatterBlock);
                 // editor.value（本文）は変わらない
                 currentMeta = nextMeta;
                 showFrontmatterModal(false);
@@ -1385,6 +1680,9 @@
 
         document.addEventListener("click", (ev) => {
             if (!ctxMenu.contains(ev.target)) hideMenu();
+            if (outlineSidebar.classList.contains("open") && !outlineSidebar.contains(ev.target) && !outlineBtn.contains(ev.target)) {
+                closeOutlineSidebar();
+            }
         });
 
         ctxMenu.addEventListener("click", async (ev) => {

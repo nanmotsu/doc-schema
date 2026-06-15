@@ -178,6 +178,7 @@ export function generateConfigCSS({ styleConfig, dslConfig, pageCfg }) {
     const counterNames = [];
     if (h.numbering && orderedLevels.length > 0) {
         counterNames.push(`h${orderedLevels[0]}-counter`);
+        counterNames.push(...blockCounters);
     } else {
         counterNames.push(...blockCounters);
     }
@@ -222,16 +223,18 @@ export function generateConfigCSS({ styleConfig, dslConfig, pageCfg }) {
 
     const sectionCounterName = h.numbering && orderedLevels.length > 0 ? `h${orderedLevels[0]}-counter` : null;
     let counterCSS = "";
-    for (const block of dslConfig.blocks) {
-        if (!block.counter) continue;
-        const prefix = block.captionPrefix || "";
-        const content = sectionCounterName
-            ? `"${prefix}" counter(${sectionCounterName}) "." counter(${block.counter}-counter) " "`
-            : `"${prefix}" counter(${block.counter}-counter) " "`;
-        if (block.captionPosition === "bottom") {
-            counterCSS += `${block.element}.${block.class} figcaption::before {\n    counter-increment: ${block.counter}-counter;\n    content: ${content};\n    font-weight: bold;\n}\n`;
-        } else if (block.captionPosition === "top") {
-            counterCSS += `.${block.class} .table-caption::before {\n    counter-increment: ${block.counter}-counter;\n    content: ${content};\n    font-weight: bold;\n}\n`;
+    if (h.numbering) {
+        for (const block of dslConfig.blocks) {
+            if (!block.counter) continue;
+            const prefix = block.captionPrefix || "";
+            const content = sectionCounterName
+                ? `"${prefix}" counter(${sectionCounterName}) "." counter(${block.counter}-counter) " "`
+                : `"${prefix}" counter(${block.counter}-counter) " "`;
+            if (block.captionPosition === "bottom") {
+                counterCSS += `${block.element}.${block.class} figcaption::before {\n    counter-increment: ${block.counter}-counter;\n    content: ${content};\n    font-weight: bold;\n}\n`;
+            } else if (block.captionPosition === "top") {
+                counterCSS += `.${block.class} .table-caption::before {\n    counter-increment: ${block.counter}-counter;\n    content: ${content};\n    font-weight: bold;\n}\n`;
+            }
         }
     }
 

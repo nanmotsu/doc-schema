@@ -296,6 +296,48 @@ function rewritePreviewAssetSourcesFromBuiltHtml(html, absMarkdownPath) {
         });
 }
 
+function buildHeadingSourceLines(markdown) {
+    const lines = String(markdown || "").split(/\r?\n/);
+    const sourceLines = [];
+    let inCodeFence = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^```/.test(line)) {
+            inCodeFence = !inCodeFence;
+            continue;
+        }
+        if (inCodeFence) continue;
+
+        const m = line.match(/^(#{1,3})\s+(.+)/);
+        if (!m) continue;
+        sourceLines.push({
+            index: sourceLines.length + 1,
+            level: m[1].length,
+            line: i + 1,
+        });
+    }
+    return sourceLines;
+}
+
+function annotateBuiltHtmlWithSourceLines(html, markdown) {
+    const headingSourceLines = buildHeadingSourceLines(markdown);
+    if (!headingSourceLines.length) return String(html || "");
+
+    const byIndex = new Map(headingSourceLines.map((h) => [h.index, h]));
+    return String(html || "").replace(/<h([1-3])([^>]*)\sid="toc-(\d+)"([^>]*)>/gi, (m, level, before, idxRaw, after) => {
+        const idx = Number(idxRaw);
+        const src = byIndex.get(idx);
+        if (!src) return m;
+
+        const attrs = `${before || ""}${after || ""}`;
+        if (/\sdata-source-line=/i.test(attrs)) {
+            return m.replace(/\sdata-source-line="\d+"/i, ` data-source-line="${src.line}"`);
+        }
+        return `<h${level}${before || ""} id="toc-${idxRaw}" data-source-line="${src.line}" data-source-level="${src.level}"${after || ""}>`;
+    });
+}
+
 function buildPreviewHtml(markdown, absPath) {
     const { meta, body } = parseFrontmatter(markdown);
     const effectivePageConfig = resolveEffectivePageConfig(meta, pageConfig);
@@ -650,7 +692,8 @@ createServer(async (req, res) => {
             const { htmlPath } = resolveBuildOutputPaths(absPath, content);
             const builtHtml = readFileSync(htmlPath, "utf-8");
             const rewritten = rewritePreviewAssetSourcesFromBuiltHtml(builtHtml, absPath);
-            sendJson(res, 200, { html: rewritten, warnings: [] });
+            const annotated = annotateBuiltHtmlWithSourceLines(rewritten, content);
+            sendJson(res, 200, { html: annotated, warnings: [] });
         } catch (e) {
             sendJson(res, 400, { error: e.message });
         }
