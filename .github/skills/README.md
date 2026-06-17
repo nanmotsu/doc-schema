@@ -13,6 +13,9 @@
 - markdown-fix-from-findings
   - 指摘事項に基づいて Markdown 本文を最小差分で修正
   - 見出し番号のみの指摘にも対応
+- markdown-pdf-convert-dsl-rules
+  - Markdown->PDF 変換前提の DSL/frontmatter/参照記法ルールを適用
+  - figure/table 採番、assetsBase、TOC、出力先制約の暗黙仕様に対応
 
 ## 発火の仕組み
 Copilot は Skill の description を見て、ユーザー依頼との一致度が高いものを読み込みます。
@@ -37,11 +40,18 @@ Skill 側も同じ前提で扱ってください。
 - 指摘修正
 - 見出し番号のみ
 - 見出し番号非依存
+- Markdown PDF変換
+- DSL
+- figure
+- table
+- ref
+- assetsBase
 
 ## 発火させる依頼文の例
 - markdown-typo-variance-check を使って、この docs 配下の表記ゆれと誤字を検出して。
 - 見出し番号のみで来た指摘を反映したい。markdown-fix-from-findings で最小差分修正して。
 - 指摘一覧を見出し番号と見出しテキストで対応付けてから修正して。
+- markdown-pdf-convert-dsl-rules を使って、このMarkdownをPDF変換ルール準拠に整えて。
 
 ## 運用のコツ
 1. 検出フェーズと修正フェーズを分ける
