@@ -29,7 +29,9 @@ revisionHistory:
 titlePage: true
 toc: true
 revisionHistoryPage: false
-headingNumbering: false
+headingNumbering: true
+orderedListStyle:
+  level1: decimal
 ---
 
 # 変換機能サンプル

@@ -20,6 +20,10 @@ import {
     resolveEffectivePageConfig,
     resolveEffectiveStyleConfig,
     resolveDslBodyWithWarnings,
+    applyCaptionNumbersToHtml,
+    resolveOrderedListStyleConfig,
+    applyOrderedListStyleClasses,
+    generateOrderedListStyleCSS,
     resolveAssetsBaseAbs,
     resolveCoverPath,
     buildTitlePage,
@@ -269,13 +273,14 @@ function parseMd(src) {
  *   %%height: 180mm%%
  */
 function parseMermaidDirectives(decodedCode) {
-    const directives = { width: null, height: null };
+    const directives = { width: null, height: null, fontSize: null };
     let code = decodedCode;
 
     while (true) {
-        const m = code.match(/^%%\s*(width|height)\s*:\s*([^%\r\n]+)\s*%%\s*(?:\r?\n|$)/i);
+        const m = code.match(/^%%\s*(width|height|fontsize|fontSize)\s*:\s*([^%\r\n]+)\s*%%\s*(?:\r?\n|$)/i);
         if (!m) break;
-        directives[m[1].toLowerCase()] = m[2].trim();
+        const key = m[1].toLowerCase() === "fontsize" ? "fontSize" : m[1].toLowerCase();
+        directives[key] = m[2].trim();
         code = code.slice(m[0].length);
     }
 
@@ -351,10 +356,16 @@ const rawMarkdown = readFileSync(inputPath, "utf-8");
 const { meta, body } = parseFrontmatter(rawMarkdown);
 const effectivePageConfig = resolveEffectivePageConfig(meta, pageConfig);
 const effectiveStyleConfig = resolveEffectiveStyleConfig(meta, styleConfig);
+const orderedListStyleConfig = resolveOrderedListStyleConfig(meta);
 
 // ── CSS ────────────────────────────────────────────────────
 // スキーマから生成した変数・カウンター・DSLクラス CSS + 構造 CSS
-const cssContent = generateConfigCSS({ styleConfig: effectiveStyleConfig, dslConfig, pageCfg: effectivePageConfig }) + "\n" + structureCss;
+const orderedListStyleCss = generateOrderedListStyleCSS(orderedListStyleConfig);
+const cssContent = [
+    generateConfigCSS({ styleConfig: effectiveStyleConfig, dslConfig, pageCfg: effectivePageConfig }),
+    structureCss,
+    orderedListStyleCss,
+].filter(Boolean).join("\n");
 
 let resolvedBody = body;
 
@@ -414,11 +425,15 @@ let processedBodyHtml = bodyHtml.replace(mermaidBlockRegex, (_, code) => {
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
-    const { code: cleanCode, width, height } = parseMermaidDirectives(decoded);
-    mermaidBlocks.push({ idx, code: cleanCode, width, height });
+    const { code: cleanCode, width, height, fontSize } = parseMermaidDirectives(decoded);
+    mermaidBlocks.push({ idx, code: cleanCode, width, height, fontSize });
     return `__MERMAID_${idx}__`;
 });
 const hasMermaid = mermaidBlocks.length > 0;
+const mermaidDefaultFontSize = effectiveStyleConfig.typography?.fontSize?.body ?? "16px";
+
+processedBodyHtml = applyCaptionNumbersToHtml(processedBodyHtml, effectiveStyleConfig.heading, dslConfig);
+processedBodyHtml = applyOrderedListStyleClasses(processedBodyHtml, orderedListStyleConfig);
 
 const titlePageHtml = buildTitlePage(meta);
 const revisionHistoryHtml = buildRevisionHistoryPage(meta);
@@ -469,20 +484,26 @@ if (hasMermaid) {
 * { font-family: 'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif; }
 </style></head><body></body></html>`);
     await tmpPage.evaluate(mermaidJs);
-    await tmpPage.evaluate(() => {
-        window.mermaid.initialize({
-            startOnLoad: false,
-            theme: 'neutral',
-            fontFamily: "'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif",
-            flowchart: { htmlLabels: true },
-            sequence: { useMaxWidth: false },
-        });
-    });
+    const baseMermaidConfig = {
+        startOnLoad: false,
+        theme: 'neutral',
+        fontFamily: "'Meiryo', 'Yu Gothic', 'MS PGothic', sans-serif",
+        themeVariables: { fontSize: mermaidDefaultFontSize },
+        flowchart: { htmlLabels: true },
+        sequence: { useMaxWidth: false },
+    };
 
-    const svgs = await tmpPage.evaluate(async (blocks) => {
+    const svgs = await tmpPage.evaluate(async (blocks, baseConfig) => {
         const out = [];
-        for (const { idx, code } of blocks) {
+        for (const { idx, code, fontSize } of blocks) {
             try {
+                window.mermaid.initialize({
+                    ...baseConfig,
+                    themeVariables: {
+                        ...baseConfig.themeVariables,
+                        fontSize: fontSize || baseConfig.themeVariables.fontSize,
+                    },
+                });
                 const { svg } = await window.mermaid.render(`m${idx}`, code);
                 out.push(svg);
             } catch (e) {
@@ -490,7 +511,7 @@ if (hasMermaid) {
             }
         }
         return out;
-    }, mermaidBlocks);
+    }, mermaidBlocks, baseMermaidConfig);
 
     await tmpPage.close();
     await browser.close();

@@ -643,8 +643,8 @@
     <div class="main">
         <div class="panel-col">
             <div class="panel-bar">
-                <button id="fmBtn">フロントマター</button>
                 <button id="outlineBtn">見出し</button>
+                <button id="fmBtn">フロントマター</button>
                 <label class="editor-highlight-toggle">
                     <input id="editorHighlightToggle" type="checkbox">
                     色付け
@@ -720,6 +720,28 @@
                             <option value="">(未指定: デフォルトON)</option>
                             <option value="true">true</option>
                             <option value="false">false</option>
+                        </select>
+                    </label>
+                    <label>orderedListStyle.level1
+                        <select id="fmOrderedListStyleLevel1">
+                            <option value="">(未指定: 標準Markdown)</option>
+                            <option value="decimal">decimal (1. 2. 3.)</option>
+                            <option value="paren-decimal">paren-decimal ((1) (2) (3))</option>
+                            <option value="lower-alpha">lower-alpha (a. b. c.)</option>
+                            <option value="upper-alpha">upper-alpha (A. B. C.)</option>
+                            <option value="paren-lower-alpha">paren-lower-alpha ((a) (b) (c))</option>
+                            <option value="paren-upper-alpha">paren-upper-alpha ((A) (B) (C))</option>
+                        </select>
+                    </label>
+                    <label>orderedListStyle.level2
+                        <select id="fmOrderedListStyleLevel2">
+                            <option value="">(未指定: 標準Markdown)</option>
+                            <option value="decimal">decimal (1. 2. 3.)</option>
+                            <option value="paren-decimal">paren-decimal ((1) (2) (3))</option>
+                            <option value="lower-alpha">lower-alpha (a. b. c.)</option>
+                            <option value="upper-alpha">upper-alpha (A. B. C.)</option>
+                            <option value="paren-lower-alpha">paren-lower-alpha ((a) (b) (c))</option>
+                            <option value="paren-upper-alpha">paren-upper-alpha ((A) (B) (C))</option>
                         </select>
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;margin-top:20px;">
@@ -807,6 +829,8 @@
             orientation: document.getElementById("fmOrientation"),
             tocDepth: document.getElementById("fmTocDepth"),
             headingNumbering: document.getElementById("fmHeadingNumbering"),
+            orderedListStyleLevel1: document.getElementById("fmOrderedListStyleLevel1"),
+            orderedListStyleLevel2: document.getElementById("fmOrderedListStyleLevel2"),
             paragraphIndent: document.getElementById("fmParagraphIndent"),
             titlePage: document.getElementById("fmTitlePage"),
             toc: document.getElementById("fmToc"),
@@ -837,6 +861,7 @@
         let editorLineHeightPx = 20;
         let editorHeadings = [];
         let activeHeadingLine = -1;
+        let pendingPreviewScrollRestore = null;
 
         function escapeHtml(text) {
             return String(text ?? "")
@@ -1061,6 +1086,9 @@
             fmFields.tocDepth.value = meta.tocDepth ?? "";
             const headingNumbering = meta.headingNumbering ?? meta.heading?.numbering;
             fmFields.headingNumbering.value = headingNumbering === true ? "true" : headingNumbering === false ? "false" : "";
+            const orderedListStyle = meta.orderedListStyle || {};
+            fmFields.orderedListStyleLevel1.value = orderedListStyle.level1 || "";
+            fmFields.orderedListStyleLevel2.value = orderedListStyle.level2 || "";
             fmFields.titlePage.checked = meta.titlePage !== false;
             fmFields.toc.checked = meta.toc !== false;
             fmFields.revisionHistoryPage.checked = meta.revisionHistoryPage !== false;
@@ -1117,6 +1145,16 @@
             if (fmFields.paragraphIndent.value === "true") next.paragraphIndent = true;
             else if (fmFields.paragraphIndent.value === "false") next.paragraphIndent = false;
             else delete next.paragraphIndent;
+
+            const orderedListStyleLevel1 = fmFields.orderedListStyleLevel1.value.trim();
+            const orderedListStyleLevel2 = fmFields.orderedListStyleLevel2.value.trim();
+            if (orderedListStyleLevel1 || orderedListStyleLevel2) {
+                next.orderedListStyle = {};
+                if (orderedListStyleLevel1) next.orderedListStyle.level1 = orderedListStyleLevel1;
+                if (orderedListStyleLevel2) next.orderedListStyle.level2 = orderedListStyleLevel2;
+            } else {
+                delete next.orderedListStyle;
+            }
 
             const margin = {
                 top: fmFields.marginTop.value.trim(),
@@ -1379,6 +1417,32 @@
             sourceSyncPoints = points;
         }
 
+        function capturePreviewScrollState() {
+            const win = preview.contentWindow;
+            const doc = preview.contentDocument;
+            if (!win || !doc || !doc.body) return null;
+
+            const top = Math.max(0, win.scrollY || 0);
+            const left = Math.max(0, win.scrollX || 0);
+            const maxY = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight);
+            const ratioY = maxY > 0 ? (top / maxY) : 0;
+
+            return { top, left, ratioY };
+        }
+
+        function restorePreviewScrollState(state) {
+            const win = preview.contentWindow;
+            const doc = preview.contentDocument;
+            if (!state || !win || !doc || !doc.body) return;
+
+            const maxY = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight);
+            const byRatio = Math.max(0, Math.min(maxY, Math.round(maxY * (state.ratioY || 0))));
+            const nextTop = Math.max(0, Math.min(maxY, Math.max(state.top || 0, byRatio)));
+            const nextLeft = Math.max(0, state.left || 0);
+
+            win.scrollTo({ top: nextTop, left: nextLeft, behavior: "auto" });
+        }
+
         function schedulePreview() {
             previewLoading.style.display = "flex";
             debounce(async () => {
@@ -1394,6 +1458,7 @@
                         URL.revokeObjectURL(previewPdfObjectUrl);
                         previewPdfObjectUrl = "";
                     }
+                    pendingPreviewScrollRestore = capturePreviewScrollState();
                     preview.removeAttribute("src");
                     preview.srcdoc = data.html;
                     if (data.warnings && data.warnings.length > 0) {
@@ -1569,6 +1634,13 @@
 
         preview.addEventListener("load", () => {
             buildSourceSyncPoints();
+            if (previewMode === "html" && pendingPreviewScrollRestore) {
+                const restoreState = pendingPreviewScrollRestore;
+                pendingPreviewScrollRestore = null;
+                requestAnimationFrame(() => {
+                    restorePreviewScrollState(restoreState);
+                });
+            }
         });
 
         function openOutlineSidebar() {

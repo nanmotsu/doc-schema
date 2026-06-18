@@ -41,7 +41,7 @@
     size: A4 portrait;
     margin: 18mm 12mm 15mm 15mm;
 }
-body { counter-reset: h1-counter; }
+body { counter-reset: h1-counter figure-counter table-counter; }
 h1 { counter-reset: h2-counter figure-counter table-counter; }
 h2 { counter-reset: h3-counter; }
 h1::before { counter-increment: h1-counter; content: counter(h1-counter) ". "; }

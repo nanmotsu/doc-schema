@@ -1,4 +1,4 @@
-# README Convert
+﻿# README Convert
 
 ## 対象
 
@@ -6,6 +6,10 @@
 - .tools/scripts/convert/build_word.mjs
 - .tools/scripts/convert/build_from_word.mjs
 - .tools/scripts/convert/gen_snippets.mjs
+- .tools/scripts/convert/render_common.mjs
+- .tools/scripts/convert/references.mjs
+- .tools/scripts/convert/gui/gui.mjs
+- .tools/scripts/convert/gui/gui.html
 - .tools/scripts/convert/gui/editor_highlight_theme.yaml
 - 000_schema/convert/dsl.json
 - 000_schema/convert/style.json
@@ -58,6 +62,8 @@ node .tools/scripts/convert/gen_snippets.mjs
     - ページ設定解決（frontmatter優先、page.jsonフォールバック）
     - 段落字下げ判定
     - スキーマ由来 CSS 生成
+    - 図表番号の静的埋め込み
+    - 番号付き箇条書きスタイルの frontmatter 解釈と CSS 生成
 - 今後この領域を変更する場合は、まず `render_common.mjs` を修正し、`build.mjs` と `gui.mjs` からは共通関数を呼ぶだけにする
 
 ### 主な操作
@@ -69,6 +75,7 @@ node .tools/scripts/convert/gen_snippets.mjs
     - 右クリックメニューで `:::pagebreak` / 画像 figure / Mermaid figure を挿入
 - 右ペイン（HTML）
     - 入力内容を自動プレビュー（frontmatter優先、page.jsonフォールバック）
+    - 本文編集・frontmatter反映でプレビュー再描画が発生しても、スクロール位置を保持する
 
 ### 実行タスク
 
@@ -99,6 +106,12 @@ node .tools/scripts/convert/gen_snippets.mjs
 - サイズ指定は `:::figure width=... height=...` で行う
 - 旧方式の `%%fig: ...%%` / `%%caption: ...%%` は使用しない
 - Word 変換（`build_word.mjs`）も同じ統一ルールに対応済み
+
+### 図表番号の確定方式（PDFズレ対策）
+
+- HTML/PDF の図表番号は CSS カウンターではなく、変換時に `<figcaption>` / `.table-caption` へ静的文字列として埋め込む
+- 本文参照（`{{ref:id}}` / `[[ref:id]]`）と同じ採番系で確定するため、表示番号と参照番号の不一致が起きない
+- `:::pagebreak` の有無によって図表番号がずれる問題を回避できる
 
 ### 画像パス解決ルール（統一）
 
@@ -146,6 +159,51 @@ flowchart LR
 :::
 ```
 
+### Mermaid 図の文字サイズ制御
+
+- Mermaid は既定で本文と同等サイズを使用する
+- `:::figure` 内の Mermaid 先頭で `%%fontsize: <size>%%`（または `%%fontSize: <size>%%`）を指定すると、その図だけ明示サイズで上書きできる
+- 明示指定がある場合は指定値を優先する
+
+```md
+:::figure width=70%
+\`\`\`mermaid
+%%fontsize: 16px%%
+flowchart LR
+    A --> B --> C
+\`\`\`
+Mermaid 文字サイズ指定例
+:::
+```
+
+### 番号付き箇条書きスタイル（frontmatter）
+
+- フロントマター `orderedListStyle.level1` / `orderedListStyle.level2` で、番号付き箇条書き（`<ol>`）の表示形式をレベル別に指定できる
+- 未指定の場合は標準の Markdown 表示（ブラウザ既定）を維持する
+- GUI の frontmatter モーダルからも同項目を設定できる
+- `paren-alpha` は廃止済み
+
+指定可能値:
+- `decimal`
+- `paren-decimal`
+- `lower-alpha`
+- `upper-alpha`
+- `paren-lower-alpha`
+- `paren-upper-alpha`
+
+```yaml
+orderedListStyle:
+    level1: decimal
+    level2: paren-upper-alpha
+```
+
+```md
+1. レベル1-A
+    1. レベル2-A
+    2. レベル2-B
+2. レベル1-B
+```
+
 ## 補足
 
 - PDF/Word 変換は Chrome/Puppeteer 環境が必要
@@ -175,6 +233,8 @@ flowchart LR
 - 文書ローカル設定/制御
     - `paragraphIndent`（互換用）
     - `bodyIndent`（互換用）
+    - `orderedListStyle.level1`
+    - `orderedListStyle.level2`
 
 ```yaml
 paper: A4
@@ -186,6 +246,10 @@ margin:
     left: 15mm
 tocDepth: 3
 paragraphIndent: true
+
+orderedListStyle:
+    level1: decimal
+    level2: paren-upper-alpha
 
 headerFooter:
     enabled: true

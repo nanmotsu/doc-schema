@@ -3,7 +3,7 @@
     "paper": "A4",
     "orientation": "portrait",
     "margin": {
-        "top": "20mm",
+        "top": "10mm",
         "right": "10mm",
         "bottom": "15mm",
         "left": "15mm"
