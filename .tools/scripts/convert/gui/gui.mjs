@@ -686,7 +686,7 @@ createServer(async (req, res) => {
             const content = String(body.content ?? "");
             const absPath = absFromWorkspaceRelative(relPath);
 
-            // build.mjs を正として、GUI側も同じ変換結果でプレビューする、E
+            // Keep preview identical to build.mjs output to preserve layout and heading sync.
             writeFileSync(absPath, content, "utf-8");
             runBuild(absPath, { htmlOnly: true });
             const { htmlPath } = resolveBuildOutputPaths(absPath, content);

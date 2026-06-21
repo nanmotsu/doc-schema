@@ -559,6 +559,28 @@ const docxBuffer = await HTMLtoDOCX(docxHtmlForConvert, null, {
 
 await stopImageServer();
 
+function injectCompatibilityModeToSettingsXml(settingsXml) {
+    if (!settingsXml || !settingsXml.includes("<w:settings")) return settingsXml;
+
+    const compatModeTag = '<w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>';
+
+    if (/<w:compat\b[^>]*>[\s\S]*?<\/w:compat>/i.test(settingsXml)) {
+        // 既存の compat ブロック内に compatibilityMode があれば上書き、なければ追記
+        return settingsXml.replace(/<w:compat\b[^>]*>([\s\S]*?)<\/w:compat>/i, (all, inner) => {
+            if (/w:name="compatibilityMode"/i.test(inner)) {
+                const replacedInner = inner.replace(
+                    /<w:compatSetting\b[^>]*w:name="compatibilityMode"[^>]*\/?>/i,
+                    compatModeTag
+                );
+                return `<w:compat>${replacedInner}</w:compat>`;
+            }
+            return `<w:compat>${inner}${compatModeTag}</w:compat>`;
+        });
+    }
+
+    return settingsXml.replace(/<\/w:settings>\s*$/i, `  <w:compat>${compatModeTag}</w:compat>\n</w:settings>`);
+}
+
 // ── OOXML 修正: w:sectPr を w:body の最後に移動 ───────────────────────
 const fixedDocxBuffer = await (async () => {
     const JSZip = _require("jszip");
@@ -590,6 +612,14 @@ const fixedDocxBuffer = await (async () => {
     xml = xml.slice(0, bodyCloseIdx) + sectPrText + xml.slice(bodyCloseIdx);
 
     zip.file("word/document.xml", xml);
+
+    const settingsEntry = zip.file("word/settings.xml");
+    if (settingsEntry) {
+        const settingsXml = await settingsEntry.async("string");
+        const patchedSettingsXml = injectCompatibilityModeToSettingsXml(settingsXml);
+        zip.file("word/settings.xml", patchedSettingsXml);
+    }
+
     return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 6 } });
 })();
 

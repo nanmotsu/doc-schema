@@ -862,6 +862,10 @@
         let editorHeadings = [];
         let activeHeadingLine = -1;
         let pendingPreviewScrollRestore = null;
+        let previewRequestToken = 0;
+        let previewAppliedToken = 0;
+        let lastHtmlPreviewScrollState = null;
+        let previewRestoreTimers = [];
 
         function escapeHtml(text) {
             return String(text ?? "")
@@ -1427,20 +1431,98 @@
             const maxY = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight);
             const ratioY = maxY > 0 ? (top / maxY) : 0;
 
-            return { top, left, ratioY };
+            let anchorSourceLine = null;
+            let anchorViewportTop = 0;
+            const anchors = Array.from(doc.querySelectorAll("h1[data-source-line], h2[data-source-line]"));
+            if (anchors.length > 0) {
+                let best = null;
+                let bestScore = Number.POSITIVE_INFINITY;
+                for (const el of anchors) {
+                    const sourceLine = Number.parseInt(el.getAttribute("data-source-line") || "", 10);
+                    if (!Number.isFinite(sourceLine) || sourceLine <= 0) continue;
+
+                    const rect = el.getBoundingClientRect();
+                    // Prefer an element currently in/near viewport to restore perceived position.
+                    let score = Math.abs(rect.top - 16);
+                    if (rect.bottom < 0 || rect.top > win.innerHeight) {
+                        score += 500;
+                    }
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = { sourceLine, viewportTop: rect.top };
+                    }
+                }
+                if (best) {
+                    anchorSourceLine = best.sourceLine;
+                    anchorViewportTop = best.viewportTop;
+                }
+            }
+
+            return { top, left, ratioY, anchorSourceLine, anchorViewportTop };
+        }
+
+        function clearPreviewRestoreTimers() {
+            for (const id of previewRestoreTimers) {
+                clearTimeout(id);
+            }
+            previewRestoreTimers = [];
         }
 
         function restorePreviewScrollState(state) {
             const win = preview.contentWindow;
             const doc = preview.contentDocument;
-            if (!state || !win || !doc || !doc.body) return;
+            if (!state || !win || !doc || !doc.body) return false;
 
             const maxY = Math.max(0, doc.documentElement.scrollHeight - win.innerHeight);
-            const byRatio = Math.max(0, Math.min(maxY, Math.round(maxY * (state.ratioY || 0))));
-            const nextTop = Math.max(0, Math.min(maxY, Math.max(state.top || 0, byRatio)));
+            let nextTop = null;
+
+            if (Number.isFinite(state.anchorSourceLine) && state.anchorSourceLine > 0) {
+                const anchor = doc.querySelector(`h1[data-source-line="${state.anchorSourceLine}"], h2[data-source-line="${state.anchorSourceLine}"]`);
+                if (anchor) {
+                    const anchorTop = Math.round(anchor.getBoundingClientRect().top + win.scrollY);
+                    const target = anchorTop - (Number(state.anchorViewportTop) || 0);
+                    nextTop = Math.max(0, Math.min(maxY, target));
+                }
+            }
+
+            if (nextTop === null) {
+                const byRatio = Math.max(0, Math.min(maxY, Math.round(maxY * (state.ratioY || 0))));
+                const byTop = Math.max(0, Math.min(maxY, state.top || 0));
+                nextTop = Math.abs(byRatio - byTop) <= 240 ? byTop : byRatio;
+            }
+
             const nextLeft = Math.max(0, state.left || 0);
 
             win.scrollTo({ top: nextTop, left: nextLeft, behavior: "auto" });
+            return true;
+        }
+
+        function schedulePreviewScrollRestore(state) {
+            if (!state) return;
+            clearPreviewRestoreTimers();
+
+            const token = state.requestToken;
+            const delays = [0, 90, 240, 500];
+            for (const delay of delays) {
+                const timerId = setTimeout(() => {
+                    if (previewMode !== "html") return;
+                    if (token !== previewAppliedToken) return;
+                    const restored = restorePreviewScrollState(state);
+                    if (restored) {
+                        const snap = capturePreviewScrollState();
+                        if (snap) lastHtmlPreviewScrollState = snap;
+                    }
+                }, delay);
+                previewRestoreTimers.push(timerId);
+            }
+        }
+
+        function trackHtmlPreviewScroll() {
+            if (previewMode !== "html") return;
+            const snap = capturePreviewScrollState();
+            if (snap) {
+                lastHtmlPreviewScrollState = snap;
+            }
         }
 
         function schedulePreview() {
@@ -1448,17 +1530,27 @@
             debounce(async () => {
                 if (!currentPath) { previewLoading.style.display = "none"; return; }
                 if (previewMode !== "html") { previewLoading.style.display = "none"; return; }
+
+                const requestToken = ++previewRequestToken;
+                const scrollState = capturePreviewScrollState() || lastHtmlPreviewScrollState;
                 try {
                     const data = await fetchJson("/api/preview", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ path: currentPath, content: getFullContent() }),
                     });
+
+                    if (requestToken !== previewRequestToken) {
+                        return;
+                    }
+
                     if (previewPdfObjectUrl) {
                         URL.revokeObjectURL(previewPdfObjectUrl);
                         previewPdfObjectUrl = "";
                     }
-                    pendingPreviewScrollRestore = capturePreviewScrollState();
+                    pendingPreviewScrollRestore = { ...scrollState, requestToken };
+                    clearPreviewRestoreTimers();
+                    previewAppliedToken = requestToken;
                     preview.removeAttribute("src");
                     preview.srcdoc = data.html;
                     if (data.warnings && data.warnings.length > 0) {
@@ -1477,6 +1569,7 @@
             setLoading(true, "PDFプレビュー生成中...");
             try {
                 setStatus("PDF変換プレビュー生成中...");
+                trackHtmlPreviewScroll();
                 await saveNow();
                 const data = await fetchJson("/api/export-pdf", {
                     method: "POST",
@@ -1490,6 +1583,7 @@
                 previewPdfObjectUrl = URL.createObjectURL(blob);
 
                 previewMode = "pdf";
+                clearPreviewRestoreTimers();
                 preview.removeAttribute("srcdoc");
                 preview.src = previewPdfObjectUrl;
                 pdfPreviewBtn.classList.add("active");
@@ -1634,13 +1728,24 @@
 
         preview.addEventListener("load", () => {
             buildSourceSyncPoints();
+            const win = preview.contentWindow;
+            if (win && !win.__convertGuiScrollTrackAttached) {
+                win.addEventListener("scroll", () => {
+                    trackHtmlPreviewScroll();
+                }, { passive: true });
+                win.__convertGuiScrollTrackAttached = true;
+            }
             if (previewMode === "html" && pendingPreviewScrollRestore) {
                 const restoreState = pendingPreviewScrollRestore;
+                if (restoreState.requestToken !== previewAppliedToken) {
+                    return;
+                }
                 pendingPreviewScrollRestore = null;
                 requestAnimationFrame(() => {
-                    restorePreviewScrollState(restoreState);
+                    schedulePreviewScrollRestore(restoreState);
                 });
             }
+            trackHtmlPreviewScroll();
         });
 
         function openOutlineSidebar() {
