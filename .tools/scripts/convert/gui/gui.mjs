@@ -41,6 +41,21 @@ const PORT = 3355;
 const GUI_HTML_PATH = join(__dirname, "gui.html");
 const EDITOR_HIGHLIGHT_THEME_PATH = join(__dirname, "editor_highlight_theme.yaml");
 
+// Selectable base directories are limited to workspace-root folders matching this regex.
+// Override with environment variable GUI_BASE_DIR_REGEX for custom patterns.
+const BASE_DIR_REGEX_SOURCE = process.env.GUI_BASE_DIR_REGEX || "^\\d{3}_.+";
+
+function compileBaseDirRegex(source) {
+    try {
+        return new RegExp(source);
+    } catch {
+        console.warn(`[WARN] GUI_BASE_DIR_REGEX が不正です。既定値を使います: ${source}`);
+        return /^\d{3}_.+/;
+    }
+}
+
+const BASE_DIR_NAME_REGEX = compileBaseDirRegex(BASE_DIR_REGEX_SOURCE);
+
 const argDir = process.argv[2];
 const defaultBaseDir = resolve(WORKSPACE, "999_利用ガイド", "変換サンプル");
 let currentBaseDir = resolve(argDir ? argDir : defaultBaseDir);
@@ -88,6 +103,13 @@ function collectMarkdownDirectories(rootDir) {
     const dirs = new Set();
     for (const file of files) dirs.add(dirname(file));
     return [...dirs].sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function collectSelectableBaseDirectories(rootDir) {
+    return readdirSync(rootDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && BASE_DIR_NAME_REGEX.test(entry.name))
+        .map((entry) => join(rootDir, entry.name))
+        .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
 function toWorkspaceRelative(absPath) {
@@ -562,7 +584,8 @@ createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/directories") {
         try {
-            const directories = collectMarkdownDirectories(WORKSPACE).map((abs) => ({
+            const baseDirs = collectSelectableBaseDirectories(WORKSPACE);
+            const directories = baseDirs.map((abs) => ({
                 workspacePath: toWorkspaceRelative(abs),
             }));
             sendJson(res, 200, {
