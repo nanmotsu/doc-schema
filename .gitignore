@@ -1,9 +1,11 @@
 # Node.js
 .tools/node_modules/
 
+
 # ログ（作成履歴）
 .tools/logs/*.jsonl
 .tools/logs/*.log
+
 
 # グラフのプリセット保存ファイル
 .tools/scripts/document/graph/presets/*.json
@@ -25,3 +27,11 @@ Desktop.ini
 
 # Obsidian
 .obsidian/
+
+# copilot-cli
+copilot_cli/node_modules/
+copilot_cli/config/.runs/
+copilot_cli/input/*
+!copilot_cli/input/.gitkeep
+copilot_cli/output/*
+!copilot_cli/output/.gitkeep

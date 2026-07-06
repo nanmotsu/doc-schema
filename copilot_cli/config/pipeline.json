@@ -1,0 +1,155 @@
+{
+  "workingDirectory": ".",
+  "defaultModel": "auto",
+  "adminMode": false,
+  "provider": {
+    "executable": "copilot",
+    "args": [
+      "--model",
+      "{{model}}",
+      "-p",
+      "{{prompt}}",
+      "-s",
+      "--allow-all-tools",
+      "--allow-all-paths",
+      "--allow-all-urls",
+      "--no-color"
+    ],
+    "useStdinPrompt": false
+  },
+  "ui": {
+    "enabled": true,
+    "port": 4173,
+    "progressPollMs": 500
+  },
+  "run": {
+    "stateDir": ".runs",
+    "dryRunDelaySeconds": 2
+  },
+  "steps": [
+    {
+      "id": "step1",
+      "promptTemplatePath": "config/prompts/step1.md",
+      "outputs": [
+        {
+          "name": "overview",
+          "path": "output/step1.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "step2",
+      "promptTemplatePath": "config/prompts/step2.md",
+      "outputs": [
+        {
+          "name": "summary",
+          "path": "output/step2.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "step3",
+      "promptTemplatePath": "config/prompts/step3.md",
+      "outputs": [
+        {
+          "name": "candidates",
+          "path": "output/step3.json",
+          "format": "json",
+          "schemaPath": "config/schemas/candidates.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "step4",
+      "promptTemplatePath": "config/prompts/step4.md",
+      "outputs": [
+        {
+          "name": "normalized",
+          "path": "output/step4.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "step5",
+      "promptTemplatePath": "config/prompts/step5.md",
+      "outputs": [
+        {
+          "name": "targets",
+          "path": "output/step5.json",
+          "format": "json",
+          "schemaPath": "config/schemas/targets.schema.json"
+        }
+      ],
+      "extractVars": [
+        {
+          "name": "loopCount",
+          "mode": "jsonPathArrayLength",
+          "fromOutputName": "targets",
+          "jsonPath": "targets"
+        }
+      ]
+    },
+    {
+      "id": "step6",
+      "promptTemplatePath": "config/prompts/step6.md",
+      "outputs": [
+        {
+          "name": "precheck",
+          "path": "output/step6.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ]
+    },
+    {
+      "id": "step7",
+      "promptTemplatePath": "config/prompts/step7.md",
+      "outputs": [
+        {
+          "name": "draft",
+          "path": "output/step7/{{loopIndex}}.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ],
+      "loop": {
+        "path": "output/step5.json",
+        "jsonPath": "targets",
+        "iteratorVar": "loopIndex"
+      }
+    },
+    {
+      "id": "step8",
+      "promptTemplatePath": "config/prompts/step8.md",
+      "outputs": [
+        {
+          "name": "review",
+          "path": "output/step8/{{loopIndex}}.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ],
+      "loop": {
+        "path": "output/step5.json",
+        "jsonPath": "targets",
+        "iteratorVar": "loopIndex"
+      }
+    },
+    {
+      "id": "step9",
+      "promptTemplatePath": "config/prompts/step9.md",
+      "outputs": [
+        {
+          "name": "final",
+          "path": "output/step9/{{loopIndex}}.txt",
+          "schemaPath": "config/schemas/text-output.schema.json"
+        }
+      ],
+      "loop": {
+        "path": "output/step5.json",
+        "jsonPath": "targets",
+        "iteratorVar": "loopIndex"
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Copilot Pipeline Console</title>
+    <!-- ダッシュボード用フォント。 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind の簡易ランタイム設定。
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ember: "#cf5f2d"
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+    <!-- メインレイアウト: 実行状態、履歴、出力プレビュー。 -->
+    <main class="layout px-4 md:px-0">
+        <section class="hero card animate-[fadeIn_0.45s_ease]">
+            <h1 class="text-3xl md:text-4xl">Copilot Pipeline Console</h1>
+            <p class="text-stone-600">実行フェーズ、履歴、出力物をリアルタイムで確認できます。</p>
+            <div class="run-controls" id="runControls">
+                <input id="fromStepId" class="run-input" placeholder="開始ステップID（例: step7、空なら先頭）" />
+                <button id="runLiveBtn" class="run-btn">実行</button>
+                <button id="runDryBtn" class="run-btn run-btn-secondary">Dry Run</button>
+                <button id="cancelRunBtn" class="run-btn run-btn-danger">停止（キャンセル）</button>
+                <span id="runStatus" class="run-status">待機中</span>
+            </div>
+            <div class="progress-wrap">
+                <div class="progress-bar-outer">
+                    <div id="progressBar" class="progress-bar-inner"></div>
+                </div>
+                <div id="progressText" class="progress-text">進捗: 0%</div>
+            </div>
+            <select id="runIdSelect" class="run-input" aria-label="表示するrunId">
+                <option value="__latest__">最新実行（runtime）</option>
+            </select>
+            <div id="runtime" class="runtime"></div>
+        </section>
+
+        <section class="card animate-[fadeIn_0.55s_ease]">
+            <h2 class="text-xl">ステップ進行</h2>
+            <p class="text-stone-600">pipeline.json の順番で、各ステップの状態を縦に表示します。</p>
+            <div class="panel">
+                <table class="step-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Step</th>
+                            <th>Status</th>
+                            <th>完了数</th>
+                            <th>現在iteration</th>
+                            <th>出力ファイル</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stepTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- 出力内容表示モーダル。 -->
+    <div id="outputModal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true"
+        aria-labelledby="outputModalTitle">
+        <div id="outputModalBackdrop" class="modal-backdrop"></div>
+        <section class="modal-panel" role="document">
+            <header class="modal-header">
+                <h3 id="outputModalTitle">出力内容</h3>
+                <button id="closeOutputModalBtn" class="modal-close-btn" aria-label="モーダルを閉じる">閉じる</button>
+            </header>
+            <div id="outputModalPath" class="modal-path"></div>
+            <pre id="outputModalContent" class="code modal-code"></pre>
+        </section>
+    </div>
+
+    <!-- ダッシュボード動作用スクリプト。 -->
+    <script src="/main.js"></script>
+</body>
+
+</html>
