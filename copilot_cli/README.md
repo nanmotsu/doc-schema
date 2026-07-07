@@ -7,12 +7,15 @@ GitHub Copilot CLI を Node.js から実行し、設定駆動で複数ステッ�
 - `config/pipeline.json` で実行設定を宣言
 - `promptTemplate` を外部ファイル（`promptTemplatePath`）へ分離可能
 - stepごとに `model` を個別指定可能
+- stepごとに `executor`（`copilot` / `api`）を指定可能
 - `steps` から `inputs` を省略し、テンプレート側で入力参照可能
 - 複数出力のステップ実行
 - 任意のJSONファイルのキー値を起点にしたループ実行
 - `step7 -> step8 -> step9 -> step7 ...` のような反復実行
 - `stderr` 検出時に即停止
 - `--from stepX` による途中再開
+- `--loop-index N` によるループ反復位置からの再開
+- `--to stepY` と `--to-loop-index M` による終了位置指定
 - `--dry-run` でトークン未消費の疑似実行
 - `--admin` または `adminMode: true` で管理者モード必須化
 - 実行状況と成果物を確認できる UI
@@ -23,7 +26,7 @@ GitHub Copilot CLI を Node.js から実行し、設定駆動で複数ステッ�
 ## ディレクトリ構成
 
 - `src/core`: パイプライン中核処理
-- `src/services`: 外部連携（Copilot CLI, 管理者判定, UI API）
+- `src/services`: 外部連携（Copilot/API実行, 管理者判定, preflight, UI API）
 - `src/ui`: 予備領域（将来 UI 実装分離用）
 - `public`: ブラウザ UI の静的ファイル
 - `config/pipeline.json`: 実行定義
@@ -43,6 +46,7 @@ GitHub Copilot CLI を Node.js から実行し、設定駆動で複数ステッ�
    - 出力をファイル保存
    - 出力ごとにスキーマ検証（次ステップ進行前に必須）
    - 必要に応じて変数抽出（例: `loopCount`）
+   - 実行前に preflight で executor と step定義の整合を検証
 5. `src/core/state.ts` が進捗を都度保存
 6. エラー時は失敗状態で停止、成功時は completed で終了
 
@@ -84,6 +88,9 @@ UI API:
 1. `npm run ui -- --config config/pipeline.json` でUIを起動
 2. ブラウザで `http://localhost:4173` を開く
 3. 必要なら開始ステップIDを入力（例: `step7`）
+   - 開始ステップはプルダウンで選択
+   - ループステップを途中再開したい場合は開始 loopIndex（0以上の整数）を指定
+   - 必要なら終了ステップと終了 loopIndex も指定
 4. `実行` または `Dry Run` ボタンを押す
 5. 実行中はプログレスバーと `現在: step / iteration` を確認
 6. 停止したい場合は `停止（キャンセル）` を押す
@@ -142,9 +149,10 @@ npm run ui -- --config config/pipeline.json
 - `defaultModel`: 既定モデル
 - `adminMode`: 管理者モード要求
 - `provider`: 実行コマンド（既定は `copilot -p`）
+- `apiProvider`: API実行コマンド（例: `curl`。stdout を step出力として利用）
 - `ui.progressPollMs`: UIの進捗ポーリング間隔（ミリ秒、既定 3000）
 - `run.stateDir`: 状態保存先（`<stateDir>/<runId>/state.json`）
-- `steps[]`: 各ステップの `outputs`, `loop(path/jsonPath)`, `extractVars`, `promptTemplatePath`
+- `steps[]`: 各ステップの `executor`, `requiresWorkspaceMutation`, `requiresCommandExecution`, `outputs`, `loop(path/jsonPath)`, `extractVars`, `promptTemplatePath*`
 
 dry-run 待機時間:
 
@@ -165,10 +173,82 @@ dry-run 待機時間:
 
 ## 外部プロンプトテンプレート
 
-- 各ステップは `promptTemplatePath` で外部ファイルを参照可能
+- 共通で `promptTemplatePath` を参照可能
+- `executor: copilot` では `promptTemplatePathCopilot` を優先
+- `executor: api` では `promptTemplatePathApi` を優先
+- `promptTemplatePath` のサフィックス切替にも対応
+   - 例: `config/prompts/step1.md` を基準に、`executor: copilot` なら `config/prompts/step1.copilot.md` を優先
+   - 例: `executor: api` なら `config/prompts/step1.api.md` を優先
+   - 優先順位は `promptTemplatePathCopilot/Api` > サフィックス付き > `promptTemplatePath`
+   - 事故防止モード: 各stepで executor 対応サフィックスファイルが必須（無い場合は preflight で失敗）
 - テンプレート内で `{{absPath:相対パス}}` を使うと、Copilot 発火直前に絶対パスへ変換される
 - テンプレート内で `{{file:相対パス}}` を使うと、対象ファイル本文を埋め込める
 - `{{overviewPath}}` のように `outputs` 名 + `Path` 変数も利用可能
+
+## 実行前チェック（Preflight）
+
+- `executor: api` の step では `requiresWorkspaceMutation: true` を禁止
+- `executor: api` の step では `requiresCommandExecution: true` を禁止
+- `executor: api` の step がある場合、`apiProvider` が必須
+- executor に対応するプロンプト（inline/path）が不足している step は実行前に失敗
+- 全stepで `promptTemplatePath` から導出される executor 対応サフィックスファイル（`.copilot` / `.api`）が無い場合は実行前に失敗
+
+Preflight 失敗例:
+
+- `executor: api` と `requiresWorkspaceMutation: true` を同時指定
+- `executor: api` と `requiresCommandExecution: true` を同時指定
+- `executor: api` の step があるのに `apiProvider` が未設定
+
+## pipeline.json サンプル
+
+最小サンプル（Copilot と API の混在）:
+
+      {
+         "workingDirectory": ".",
+         "defaultModel": "auto",
+         "provider": {
+            "executable": "copilot",
+            "args": ["--model", "{{model}}", "-p", "{{prompt}}", "-s", "--allow-all-tools", "--allow-all-paths", "--allow-all-urls", "--no-color"]
+         },
+         "apiProvider": {
+            "executable": "curl",
+            "args": ["-s", "https://example.invalid/llm", "-d", "prompt={{prompt}}", "-d", "model={{model}}"]
+         },
+         "run": {
+            "stateDir": ".runs"
+         },
+         "steps": [
+            {
+               "id": "stepA",
+               "executor": "copilot",
+               "requiresWorkspaceMutation": true,
+               "requiresCommandExecution": true,
+               "promptTemplatePathCopilot": "config/prompts/stepA.copilot.md",
+               "outputs": [
+                  {
+                     "name": "resultA",
+                     "path": "output/stepA.txt",
+                     "schemaPath": "config/schemas/text-output.schema.json"
+                  }
+               ]
+            },
+            {
+               "id": "stepB",
+               "executor": "api",
+               "requiresWorkspaceMutation": false,
+               "requiresCommandExecution": false,
+               "promptTemplatePathApi": "config/prompts/stepB.api.md",
+               "outputs": [
+                  {
+                     "name": "resultB",
+                     "path": "output/stepB.json",
+                     "format": "json",
+                     "schemaPath": "config/schemas/targets.schema.json"
+                  }
+               ]
+            }
+         ]
+      }
 
 ## 出力スキーマ
 

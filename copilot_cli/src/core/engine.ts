@@ -5,9 +5,11 @@ import { loadConfig } from "./config";
 import { jsonPathArrayLength, resolveJsonPath } from "./jsonPath";
 import { StateStore } from "./state";
 import { renderTemplate } from "./template";
-import type { PipelineConfig, RuntimeState, StepSpec, SupportedModel } from "./types";
+import type { PipelineConfig, RuntimeState, StepExecutor, StepSpec, SupportedModel } from "./types";
 import { ensureAdminMode } from "../services/admin";
+import { ApiClient } from "../services/apiClient";
 import { CopilotClient } from "../services/copilotClient";
+import { runPreflight } from "../services/preflight";
 
 const ajv = new Ajv({ allErrors: true });
 
@@ -15,6 +17,9 @@ const ajv = new Ajv({ allErrors: true });
 interface RunPipelineOptions {
     configPath: string;
     fromStepId?: string;
+    fromLoopIndex?: number;
+    toStepId?: string;
+    toLoopIndex?: number;
     dryRun: boolean;
     forceAdminMode: boolean;
     sourceRunId?: string;
@@ -74,9 +79,42 @@ function toProjectAbsolute(projectRoot: string, maybeRelativePath: string): stri
 }
 
 // ステップのテンプレート本文を取得する（外部ファイル対応）。
-function resolvePromptTemplate(step: StepSpec, projectRoot: string): string {
-    if (step.promptTemplatePath) {
-        const templatePath = toProjectAbsolute(projectRoot, step.promptTemplatePath);
+function resolveStepExecutor(step: StepSpec): StepExecutor {
+    return step.executor ?? "copilot";
+}
+
+function withPromptSuffix(filePath: string, suffix: "copilot" | "api"): string {
+    const parsed = path.parse(filePath);
+    if (!parsed.ext) {
+        return path.join(parsed.dir, `${parsed.base}.${suffix}`);
+    }
+    return path.join(parsed.dir, `${parsed.name}.${suffix}${parsed.ext}`);
+}
+
+function pickExistingPromptPath(projectRoot: string, candidates: Array<string | undefined>): string | undefined {
+    for (const candidate of candidates) {
+        if (!candidate) {
+            continue;
+        }
+        const full = toProjectAbsolute(projectRoot, candidate);
+        if (existsSync(full)) {
+            return candidate;
+        }
+    }
+    return undefined;
+}
+
+// ステップのテンプレート本文を取得する（外部ファイル対応）。
+function resolvePromptTemplate(step: StepSpec, projectRoot: string, executor: StepExecutor): string {
+    const suffixed = step.promptTemplatePath
+        ? withPromptSuffix(step.promptTemplatePath, executor)
+        : undefined;
+    const promptPath = executor === "copilot"
+        ? (step.promptTemplatePathCopilot ?? pickExistingPromptPath(projectRoot, [suffixed, step.promptTemplatePath]) ?? step.promptTemplatePath)
+        : (step.promptTemplatePathApi ?? pickExistingPromptPath(projectRoot, [suffixed, step.promptTemplatePath]) ?? step.promptTemplatePath);
+
+    if (promptPath) {
+        const templatePath = toProjectAbsolute(projectRoot, promptPath);
         if (!existsSync(templatePath)) {
             throw new Error(`Step '${step.id}' promptTemplatePath not found: ${templatePath}`);
         }
@@ -509,7 +547,7 @@ async function executeStepIteration(
     projectRoot: string,
     config: PipelineConfig,
     dryRun: boolean,
-    client: CopilotClient,
+    clients: { copilot: CopilotClient; api?: ApiClient },
     stateStore: StateStore,
     runArtifactsDir: string,
     modelOverrides?: { model?: SupportedModel; stepModels?: Record<string, SupportedModel> },
@@ -555,7 +593,8 @@ async function executeStepIteration(
         inputVars[`${output.name}Path`] = toProjectAbsolute(projectRoot, renderTemplate(output.path, scopedVars));
     }
 
-    const promptTemplate = resolvePromptTemplate(step, projectRoot);
+    const executor = resolveStepExecutor(step);
+    const promptTemplate = resolvePromptTemplate(step, projectRoot, executor);
     const promptRaw = renderTemplate(promptTemplate, inputVars);
     const prompt = normalizePromptShape(
         replaceInlineFileContentTokens(
@@ -567,7 +606,14 @@ async function executeStepIteration(
 
     const response = dryRun
         ? createDryRunResponse(step, prompt, model)
-        : (await client.runPrompt(prompt, model)).stdout;
+        : (executor === "api"
+            ? (await (() => {
+                if (!clients.api) {
+                    throw new Error(`Step '${step.id}' requires apiProvider, but apiProvider is not configured.`);
+                }
+                return clients.api.runPrompt(prompt, model);
+            })()).stdout
+            : (await clients.copilot.runPrompt(prompt, model)).stdout);
 
     const outputMap = writeOutputs(step, response, projectRoot, scopedVars, runArtifactsDir);
     extractVariables(step, outputMap, nextState.variables);
@@ -588,14 +634,58 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
     const workingDir = path.isAbsolute(config.workingDirectory)
         ? path.normalize(config.workingDirectory)
         : path.resolve(projectRoot, config.workingDirectory);
+    runPreflight(config, projectRoot);
     ensureAdminMode(options.forceAdminMode || Boolean(config.adminMode));
 
     const runId = nowId();
     const fromStepId = options.fromStepId ?? config.steps[0].id;
+    const toStepId = options.toStepId;
 
     const stepStartIndex = config.steps.findIndex((step) => step.id === fromStepId);
     if (stepStartIndex < 0) {
         throw new Error(`fromStepId '${fromStepId}' was not found.`);
+    }
+    const stepEndIndex = toStepId
+        ? config.steps.findIndex((step) => step.id === toStepId)
+        : -1;
+    if (toStepId && stepEndIndex < 0) {
+        throw new Error(`toStepId '${toStepId}' was not found.`);
+    }
+    if (stepEndIndex >= 0 && stepEndIndex < stepStartIndex) {
+        throw new Error(`toStepId '${toStepId}' must be after or equal to fromStepId '${fromStepId}'.`);
+    }
+
+    const fromStepSpec = config.steps[stepStartIndex];
+    const toStepSpec = stepEndIndex >= 0 ? config.steps[stepEndIndex] : undefined;
+
+    if (options.fromLoopIndex !== undefined) {
+        if (!Number.isInteger(options.fromLoopIndex) || options.fromLoopIndex < 0) {
+            throw new Error("fromLoopIndex must be a non-negative integer.");
+        }
+        if (!fromStepSpec.loop && options.fromLoopIndex !== 0) {
+            throw new Error(`fromLoopIndex is only available for loop steps. step='${fromStepId}'`);
+        }
+    }
+    const requestedFromLoopIndex = options.fromLoopIndex ?? 0;
+
+    if (options.toLoopIndex !== undefined) {
+        if (!Number.isInteger(options.toLoopIndex) || options.toLoopIndex < 0) {
+            throw new Error("toLoopIndex must be a non-negative integer.");
+        }
+        if (!toStepSpec) {
+            throw new Error("toLoopIndex requires toStepId.");
+        }
+        if (!toStepSpec.loop && options.toLoopIndex !== 0) {
+            throw new Error(`toLoopIndex is only available for loop steps. step='${toStepSpec.id}'`);
+        }
+    }
+    const requestedToLoopIndex = options.toLoopIndex;
+
+    if (fromStepId === toStepId
+        && fromStepSpec.loop
+        && requestedToLoopIndex !== undefined
+        && requestedFromLoopIndex > requestedToLoopIndex) {
+        throw new Error(`toLoopIndex (${requestedToLoopIndex}) must be greater than or equal to fromLoopIndex (${requestedFromLoopIndex}).`);
     }
 
     prepareOutputWorkspace(config, configDir, projectRoot, fromStepId, options.sourceRunId);
@@ -608,6 +698,9 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
         phase: "running",
         startedAt: new Date().toISOString(),
         fromStepId,
+        fromLoopIndex: fromStepSpec.loop ? requestedFromLoopIndex : undefined,
+        toStepId: toStepSpec?.id,
+        toLoopIndex: requestedToLoopIndex,
         dryRun: options.dryRun,
         adminMode: options.forceAdminMode || Boolean(config.adminMode),
         logs: [],
@@ -615,7 +708,10 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
     };
     stateStore.save(runtime);
 
-    const client = new CopilotClient(config.provider, workingDir);
+    const clients = {
+        copilot: new CopilotClient(config.provider, workingDir),
+        api: config.apiProvider ? new ApiClient(config.apiProvider, workingDir) : undefined
+    };
     const modelOverrides = {
         model: options.model,
         stepModels: options.stepModels
@@ -623,9 +719,32 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
     let state = runtime;
 
     try {
+        const isWithinRangeStep = (index: number): boolean => {
+            if (stepEndIndex < 0) {
+                return true;
+            }
+            return index <= stepEndIndex;
+        };
+
+        const shouldStopAtBoundary = (stepId: string, iteration: number): boolean => {
+            if (!toStepId || stepId !== toStepId) {
+                return false;
+            }
+            if (requestedToLoopIndex === undefined) {
+                return true;
+            }
+            return iteration >= requestedToLoopIndex;
+        };
+
+        let reachedBoundary = false;
+
         // 非ループは単独実行、ループは同一設定の連続ステップをグループ実行する。
         for (let index = stepStartIndex; index < config.steps.length;) {
             throwIfCancelled(options.shouldCancel);
+
+            if (!isWithinRangeStep(index)) {
+                break;
+            }
 
             const step = config.steps[index];
             if (!step.loop) {
@@ -638,12 +757,16 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
                     projectRoot,
                     config,
                     options.dryRun,
-                    client,
+                    clients,
                     stateStore,
                     runArtifactsDir,
                     modelOverrides,
                     options.shouldCancel
                 );
+                if (shouldStopAtBoundary(step.id, 0)) {
+                    reachedBoundary = true;
+                    break;
+                }
                 index += 1;
                 continue;
             }
@@ -652,10 +775,26 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
             const group = config.steps.slice(index, groupEnd + 1);
             const iteratorVar = step.loop.iteratorVar ?? "loopIndex";
             const loopCount = resolveStepLoopCount(step, projectRoot, state.variables);
+            const startIteration = index === stepStartIndex ? requestedFromLoopIndex : 0;
+            if (startIteration >= loopCount) {
+                throw new Error(
+                    `fromLoopIndex (${startIteration}) is out of range. loopCount=${loopCount}, step='${step.id}'.`
+                );
+            }
+            if (toStepId && group.some((groupedStep) => groupedStep.id === toStepId) && requestedToLoopIndex !== undefined && requestedToLoopIndex >= loopCount) {
+                throw new Error(
+                    `toLoopIndex (${requestedToLoopIndex}) is out of range. loopCount=${loopCount}, step='${toStepId}'.`
+                );
+            }
 
-            for (let iteration = 0; iteration < loopCount; iteration += 1) {
+            for (let iteration = startIteration; iteration < loopCount; iteration += 1) {
                 throwIfCancelled(options.shouldCancel);
                 for (const groupedStep of group) {
+                    const groupedIndex = config.steps.findIndex((s) => s.id === groupedStep.id);
+                    if (!isWithinRangeStep(groupedIndex)) {
+                        reachedBoundary = true;
+                        break;
+                    }
                     state = await executeStepIteration(
                         groupedStep,
                         iteration,
@@ -665,13 +804,24 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
                         projectRoot,
                         config,
                         options.dryRun,
-                        client,
+                        clients,
                         stateStore,
                         runArtifactsDir,
                         modelOverrides,
                         options.shouldCancel
                     );
+                    if (shouldStopAtBoundary(groupedStep.id, iteration)) {
+                        reachedBoundary = true;
+                        break;
+                    }
                 }
+                if (reachedBoundary) {
+                    break;
+                }
+            }
+
+            if (reachedBoundary) {
+                break;
             }
 
             index = groupEnd + 1;

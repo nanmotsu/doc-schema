@@ -7,6 +7,9 @@ import { startUiServer } from "./services/uiServer";
 interface CliArgs {
     configPath: string;
     fromStepId?: string;
+    fromLoopIndex?: number;
+    toStepId?: string;
+    toLoopIndex?: number;
     dryRun: boolean;
     admin: boolean;
     mode: "run" | "ui";
@@ -22,6 +25,9 @@ function parseArgs(argv: string[]): CliArgs {
 
     let configPath = "config/pipeline.json";
     let fromStepId: string | undefined;
+    let fromLoopIndex: number | undefined;
+    let toStepId: string | undefined;
+    let toLoopIndex: number | undefined;
     let dryRun = false;
     let admin = false;
 
@@ -34,6 +40,31 @@ function parseArgs(argv: string[]): CliArgs {
         }
         if (token === "--from") {
             fromStepId = args[i + 1];
+            i += 1;
+            continue;
+        }
+        if (token === "--loop-index") {
+            const rawValue = args[i + 1];
+            const parsed = Number(rawValue);
+            if (!Number.isInteger(parsed) || parsed < 0) {
+                throw new Error("--loop-index must be a non-negative integer.");
+            }
+            fromLoopIndex = parsed;
+            i += 1;
+            continue;
+        }
+        if (token === "--to") {
+            toStepId = args[i + 1];
+            i += 1;
+            continue;
+        }
+        if (token === "--to-loop-index") {
+            const rawValue = args[i + 1];
+            const parsed = Number(rawValue);
+            if (!Number.isInteger(parsed) || parsed < 0) {
+                throw new Error("--to-loop-index must be a non-negative integer.");
+            }
+            toLoopIndex = parsed;
             i += 1;
             continue;
         }
@@ -50,6 +81,9 @@ function parseArgs(argv: string[]): CliArgs {
     return {
         configPath,
         fromStepId,
+        fromLoopIndex,
+        toStepId,
+        toLoopIndex,
         dryRun,
         admin,
         mode
@@ -75,6 +109,9 @@ async function main(): Promise<void> {
     const state = await runPipeline({
         configPath,
         fromStepId: parsed.fromStepId,
+        fromLoopIndex: parsed.fromLoopIndex,
+        toStepId: parsed.toStepId,
+        toLoopIndex: parsed.toLoopIndex,
         dryRun: parsed.dryRun,
         forceAdminMode: parsed.admin
     });

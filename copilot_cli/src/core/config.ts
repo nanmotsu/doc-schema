@@ -14,8 +14,13 @@ function validateStep(step: StepSpec): void {
     if (!step.id) {
         throw new Error("Step id is required.");
     }
-    if (!step.promptTemplate && !step.promptTemplatePath) {
-        throw new Error(`Step '${step.id}' requires promptTemplate or promptTemplatePath.`);
+    if (!step.promptTemplate
+        && !step.promptTemplatePath
+        && !step.promptTemplatePathCopilot
+        && !step.promptTemplatePathApi) {
+        throw new Error(
+            `Step '${step.id}' requires one of promptTemplate/promptTemplatePath/promptTemplatePathCopilot/promptTemplatePathApi.`
+        );
     }
     if (step.inputs && !Array.isArray(step.inputs)) {
         throw new Error(`Step '${step.id}' inputs must be an array when provided.`);
@@ -39,6 +44,21 @@ function validateStep(step: StepSpec): void {
     if (step.model !== undefined) {
         assertNonEmptyString(step.model, `steps.${step.id}.model`);
     }
+    if (step.promptTemplatePathCopilot !== undefined) {
+        assertNonEmptyString(step.promptTemplatePathCopilot, `steps.${step.id}.promptTemplatePathCopilot`);
+    }
+    if (step.promptTemplatePathApi !== undefined) {
+        assertNonEmptyString(step.promptTemplatePathApi, `steps.${step.id}.promptTemplatePathApi`);
+    }
+    if (step.executor !== undefined && step.executor !== "copilot" && step.executor !== "api") {
+        throw new Error(`steps.${step.id}.executor must be 'copilot' or 'api'.`);
+    }
+    if (step.requiresWorkspaceMutation !== undefined && typeof step.requiresWorkspaceMutation !== "boolean") {
+        throw new Error(`steps.${step.id}.requiresWorkspaceMutation must be boolean.`);
+    }
+    if (step.requiresCommandExecution !== undefined && typeof step.requiresCommandExecution !== "boolean") {
+        throw new Error(`steps.${step.id}.requiresCommandExecution must be boolean.`);
+    }
 }
 
 // 設定JSONを読み込み、構造と意味の両面で検証する。
@@ -59,6 +79,14 @@ export function loadConfig(configPath: string): { config: PipelineConfig; config
     }
     if (!parsed.provider.args || !Array.isArray(parsed.provider.args)) {
         throw new Error("provider.args must be an array.");
+    }
+    if (parsed.apiProvider) {
+        if (!parsed.apiProvider.executable) {
+            throw new Error("apiProvider.executable is required when apiProvider is defined.");
+        }
+        if (!parsed.apiProvider.args || !Array.isArray(parsed.apiProvider.args)) {
+            throw new Error("apiProvider.args must be an array when apiProvider is defined.");
+        }
     }
     if (parsed.ui?.progressPollMs !== undefined) {
         if (typeof parsed.ui.progressPollMs !== "number" || !Number.isFinite(parsed.ui.progressPollMs) || parsed.ui.progressPollMs <= 0) {

@@ -32,6 +32,70 @@ let pipelineMeta = null;
 let selectedRunId = "__new__";
 const selectedOutputByStep = new Map();
 let refreshTimerId = null;
+let latestRuntimeRunId = "";
+let pendingFreshRunMask = null;
+
+// 開始ステップのプルダウン候補を設定する。
+function populateFromStepOptions() {
+  const fromStepSelect = document.getElementById("fromStepId");
+  const toStepSelect = document.getElementById("toStepId");
+  if (!fromStepSelect) {
+    return;
+  }
+
+  const beforeFrom = fromStepSelect.value;
+  const beforeTo = toStepSelect?.value || "";
+  const steps = pipelineMeta?.steps || [];
+  const fromOptions = [{ value: "", label: "開始ステップ（先頭から）" }]
+    .concat(steps.map((step) => ({ value: step.id, label: step.id })));
+  const toOptions = [{ value: "", label: "終了ステップ（末尾まで）" }]
+    .concat(steps.map((step) => ({ value: step.id, label: step.id })));
+
+  fromStepSelect.innerHTML = fromOptions
+    .map((opt) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.label)}</option>`)
+    .join("");
+  if (toStepSelect) {
+    toStepSelect.innerHTML = toOptions
+      .map((opt) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.label)}</option>`)
+      .join("");
+  }
+
+  const validFrom = new Set(fromOptions.map((opt) => opt.value));
+  fromStepSelect.value = validFrom.has(beforeFrom) ? beforeFrom : "";
+
+  if (toStepSelect) {
+    const validTo = new Set(toOptions.map((opt) => opt.value));
+    toStepSelect.value = validTo.has(beforeTo) ? beforeTo : "";
+  }
+}
+
+function parseNonNegativeInt(value) {
+  const raw = String(value || "").trim();
+  if (raw.length === 0) {
+    return { value: undefined, hasValue: false };
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    return { value: undefined, hasValue: true, invalid: true };
+  }
+  return { value: parsed, hasValue: true, invalid: false };
+}
+
+function stepIndex(stepId) {
+  if (!stepId) {
+    return -1;
+  }
+  const steps = pipelineMeta?.steps || [];
+  return steps.findIndex((step) => step.id === stepId);
+}
+
+function isLoopStep(stepId) {
+  const idx = stepIndex(stepId);
+  if (idx < 0) {
+    return false;
+  }
+  return Boolean(pipelineMeta?.steps?.[idx]?.hasLoop);
+}
 
 // HTMLに安全に表示するため最小限のエスケープを行う。
 function escapeHtml(text) {
@@ -274,8 +338,13 @@ function setupRunControls() {
   const liveBtn = document.getElementById("runLiveBtn");
   const dryBtn = document.getElementById("runDryBtn");
   const cancelBtn = document.getElementById("cancelRunBtn");
-  const fromStepInput = document.getElementById("fromStepId");
+  const fromStepSelect = document.getElementById("fromStepId");
+  const fromLoopIndexInput = document.getElementById("fromLoopIndex");
+  const toStepSelect = document.getElementById("toStepId");
+  const toLoopIndexInput = document.getElementById("toLoopIndex");
   const runStatus = document.getElementById("runStatus");
+
+  populateFromStepOptions();
 
   async function startRun(dryRun) {
     liveBtn.disabled = true;
@@ -283,7 +352,55 @@ function setupRunControls() {
     runStatus.textContent = dryRun ? "Dry Run 実行中..." : "実行中...";
 
     try {
-      const fromStepId = fromStepInput.value.trim() || undefined;
+      const fromStepId = fromStepSelect.value.trim() || undefined;
+      const toStepId = toStepSelect.value.trim() || undefined;
+
+      const parsedFromLoop = parseNonNegativeInt(fromLoopIndexInput.value);
+      if (parsedFromLoop.invalid) {
+        window.alert("開始loopIndexは 0 以上の整数で指定してください。");
+        runStatus.textContent = "開始loopIndexの入力が不正です。";
+        return;
+      }
+      const fromLoopIndex = parsedFromLoop.value;
+
+      const parsedToLoop = parseNonNegativeInt(toLoopIndexInput.value);
+      if (parsedToLoop.invalid) {
+        window.alert("終了loopIndexは 0 以上の整数で指定してください。");
+        runStatus.textContent = "終了loopIndexの入力が不正です。";
+        return;
+      }
+      const toLoopIndex = parsedToLoop.value;
+
+      if (fromLoopIndex !== undefined && fromStepId && !isLoopStep(fromStepId) && fromLoopIndex !== 0) {
+        window.alert("開始loopIndexはループステップに対して指定してください。非ループでは 0 のみ有効です。");
+        runStatus.textContent = "開始loopIndexの指定条件が不正です。";
+        return;
+      }
+      if (toLoopIndex !== undefined && !toStepId) {
+        window.alert("終了loopIndexを指定する場合は、終了ステップも選択してください。");
+        runStatus.textContent = "終了条件の指定が不足しています。";
+        return;
+      }
+      if (toLoopIndex !== undefined && toStepId && !isLoopStep(toStepId) && toLoopIndex !== 0) {
+        window.alert("終了loopIndexはループステップに対して指定してください。非ループでは 0 のみ有効です。");
+        runStatus.textContent = "終了loopIndexの指定条件が不正です。";
+        return;
+      }
+
+      if (fromStepId && toStepId) {
+        const fromIdx = stepIndex(fromStepId);
+        const toIdx = stepIndex(toStepId);
+        if (fromIdx >= 0 && toIdx >= 0 && toIdx < fromIdx) {
+          window.alert("終了ステップは開始ステップ以降を選択してください。");
+          runStatus.textContent = "開始/終了ステップの範囲が不正です。";
+          return;
+        }
+        if (fromIdx >= 0 && toIdx >= 0 && fromIdx === toIdx && fromLoopIndex !== undefined && toLoopIndex !== undefined && toLoopIndex < fromLoopIndex) {
+          window.alert("同一ステップでは、終了loopIndexは開始loopIndex以上を指定してください。");
+          runStatus.textContent = "開始/終了loopIndexの範囲が不正です。";
+          return;
+        }
+      }
 
       if (fromStepId) {
         const outputFiles = await getJson(`/api/outputs?runId=${encodeURIComponent(effectiveSnapshotRunId())}`);
@@ -301,8 +418,17 @@ function setupRunControls() {
       const payload = {
         dryRun,
         fromStepId,
+        fromLoopIndex,
+        toStepId,
+        toLoopIndex,
         sourceRunId: effectiveSnapshotRunId() || undefined
       };
+
+      const isFreshHeadRun = selectedRunId === "__new__" && (fromStepId === undefined || stepIndex(fromStepId) === 0);
+      if (isFreshHeadRun) {
+        // 新規先頭実行の直後は、旧runの表示を一時的に隠す。
+        pendingFreshRunMask = { previousRunId: latestRuntimeRunId || "" };
+      }
 
       if (effectiveSnapshotRunId()) {
         const confirmed = window.confirm("過去スナップショットを使って再実行します。output を一掃し、必要な出力を復元して上書きします。続行しますか？");
@@ -316,6 +442,7 @@ function setupRunControls() {
       runStatus.textContent = result.message || "実行を開始しました。";
       await refreshAll();
     } catch (error) {
+      pendingFreshRunMask = null;
       runStatus.textContent = `失敗: ${String(error.message || error)}`;
     } finally {
       liveBtn.disabled = false;
@@ -352,6 +479,9 @@ function renderRuntime(runtime) {
     <div class="item"><span class="label">dryRun</span><span class="value">${runtime.dryRun ? "true" : "false"}</span></div>
     <div class="item"><span class="label">adminMode</span><span class="value">${runtime.adminMode ? "true" : "false"}</span></div>
     <div class="item"><span class="label">from</span><span class="value">${runtime.fromStepId ?? "-"}</span></div>
+    <div class="item"><span class="label">fromLoopIndex</span><span class="value">${Number.isInteger(runtime.fromLoopIndex) ? runtime.fromLoopIndex : "-"}</span></div>
+    <div class="item"><span class="label">to</span><span class="value">${runtime.toStepId ?? "-"}</span></div>
+    <div class="item"><span class="label">toLoopIndex</span><span class="value">${Number.isInteger(runtime.toLoopIndex) ? runtime.toLoopIndex : "-"}</span></div>
   `;
 }
 
@@ -474,15 +604,33 @@ async function refreshAll() {
       getJson("/api/control")
     ]);
 
+    latestRuntimeRunId = runtimeLatest?.runId || "";
+
     renderRunSelector(runtimeLatest, runs);
     const runtime = pickDisplayRuntime(runtimeLatest, runs);
-    const displayControl = selectedRunId === "__new__"
-      ? control
-      : { isRunning: false, cancelRequested: false };
+    const isNewRunIdleView = selectedRunId === "__new__" && !control?.isRunning;
 
-    renderRuntime(runtime);
-    renderStepTable(runtime, displayControl, outputs);
-    renderProgress(runtime, displayControl);
+    let shouldMaskFreshRun = false;
+    if (pendingFreshRunMask && selectedRunId === "__new__") {
+      const stillOldRun = (runtimeLatest?.runId || "") === pendingFreshRunMask.previousRunId;
+      if (control?.isRunning && stillOldRun) {
+        shouldMaskFreshRun = true;
+      } else {
+        pendingFreshRunMask = null;
+      }
+    }
+
+    const runtimeForRender = (shouldMaskFreshRun || isNewRunIdleView) ? null : runtime;
+    const outputsForRender = (shouldMaskFreshRun || isNewRunIdleView) ? [] : outputs;
+    const displayControl = (shouldMaskFreshRun || isNewRunIdleView)
+      ? { isRunning: false, cancelRequested: false }
+      : (selectedRunId === "__new__"
+      ? control
+      : { isRunning: false, cancelRequested: false });
+
+    renderRuntime(runtimeForRender);
+    renderStepTable(runtimeForRender, displayControl, outputsForRender);
+    renderProgress(runtimeForRender, displayControl);
 
     const cancelBtn = document.getElementById("cancelRunBtn");
     if (cancelBtn) {

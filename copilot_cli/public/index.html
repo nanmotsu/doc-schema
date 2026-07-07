@@ -34,7 +34,16 @@
             <h1 class="text-3xl md:text-4xl">Copilot Pipeline Console</h1>
             <p class="text-stone-600">実行フェーズ、履歴、出力物をリアルタイムで確認できます。</p>
             <div class="run-controls" id="runControls">
-                <input id="fromStepId" class="run-input" placeholder="開始ステップID（例: step7、空なら先頭）" />
+                <select id="fromStepId" class="run-input" aria-label="開始ステップID">
+                    <option value="">開始ステップ（先頭から）</option>
+                </select>
+                <input id="fromLoopIndex" class="run-input run-input-compact" type="number" min="0" step="1"
+                    placeholder="開始loopIndex（例: 2、省略可）" />
+                <select id="toStepId" class="run-input" aria-label="終了ステップID">
+                    <option value="">終了ステップ（末尾まで）</option>
+                </select>
+                <input id="toLoopIndex" class="run-input run-input-compact" type="number" min="0" step="1"
+                    placeholder="終了loopIndex（例: 4、省略可）" />
                 <button id="runLiveBtn" class="run-btn">実行</button>
                 <button id="runDryBtn" class="run-btn run-btn-secondary">Dry Run</button>
                 <button id="cancelRunBtn" class="run-btn run-btn-danger">停止（キャンセル）</button>

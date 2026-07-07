@@ -8,6 +8,9 @@ export interface ProviderConfig {
     useStdinPrompt?: boolean;
 }
 
+// stepごとの実行エンジン種別。
+export type StepExecutor = "copilot" | "api";
+
 // UIサーバの設定。
 export interface UiConfig {
     enabled?: boolean;
@@ -56,6 +59,11 @@ export interface StepSpec {
     id: string;
     promptTemplate?: string;
     promptTemplatePath?: string;
+    promptTemplatePathCopilot?: string;
+    promptTemplatePathApi?: string;
+    executor?: StepExecutor;
+    requiresWorkspaceMutation?: boolean;
+    requiresCommandExecution?: boolean;
     model?: SupportedModel;
     inputs?: InputSpec[];
     outputs: OutputSpec[];
@@ -69,6 +77,7 @@ export interface PipelineConfig {
     defaultModel: SupportedModel;
     modelEnum?: SupportedModel[];
     provider: ProviderConfig;
+    apiProvider?: ProviderConfig;
     ui?: UiConfig;
     run: RunConfig;
     adminMode?: boolean;
@@ -94,6 +103,9 @@ export interface RuntimeState {
     startedAt: string;
     endedAt?: string;
     fromStepId: string;
+    fromLoopIndex?: number;
+    toStepId?: string;
+    toLoopIndex?: number;
     dryRun: boolean;
     adminMode: boolean;
     currentStepId?: string;

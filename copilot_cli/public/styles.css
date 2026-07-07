@@ -82,6 +82,12 @@ p {
     background: #fff;
 }
 
+.run-input-compact {
+    flex: 0 0 64px;
+    min-width: 64px;
+    max-width: 64px;
+}
+
 .run-check {
     font-size: 0.88rem;
     color: var(--muted);
