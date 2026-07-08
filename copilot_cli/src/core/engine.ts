@@ -233,7 +233,7 @@ function pathTemplateToRegex(templatePath: string): RegExp {
     const escaped = templatePath
         .replace(/\\/g, "/")
         .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-        .replace(/\{\{[^}]+\}\}/g, "[^/]+");
+        .replace(/\\\{\\\{[^}]+\\\}\\\}/g, "[^/]+");
     return new RegExp(`^${escaped}$`);
 }
 
@@ -277,17 +277,71 @@ function validateRequiredPreviousOutputs(
 function removeOutputsForSteps(
     steps: StepSpec[],
     fromIndex: number,
-    outputDir: string
+    outputDir: string,
+    fromLoopIndex?: number
 ): void {
     const files = walkFiles(outputDir);
-    const patterns = steps
-        .slice(fromIndex)
-        .flatMap((step) => step.outputs.map((output) => output.path))
-        .filter((p) => !path.isAbsolute(p))
-        .map((p) => pathTemplateToRegex(p));
+
+    const fromStep = steps[fromIndex];
+    const baseLoopSignature = fromStep?.loop ? getLoopSignature(fromStep) : null;
+    const loopGroupEnd = baseLoopSignature ? findLoopGroupEnd(steps, fromIndex) : fromIndex;
+    const preserveBeforeDisplayLoopIndex = (baseLoopSignature && fromLoopIndex !== undefined && fromLoopIndex > 0)
+        ? fromLoopIndex + 1
+        : undefined;
+
+    interface OutputRule {
+        stepIndex: number;
+        matchers: RegExp[];
+        hasTemplate: boolean;
+    }
+
+    const rules: OutputRule[] = [];
+    for (let stepIndex = fromIndex; stepIndex < steps.length; stepIndex += 1) {
+        const step = steps[stepIndex];
+        for (const output of step.outputs) {
+            if (path.isAbsolute(output.path)) {
+                continue;
+            }
+            const normalized = output.path.replace(/\\/g, "/");
+            const withoutOutputPrefix = normalized.startsWith("output/")
+                ? normalized.slice("output/".length)
+                : normalized;
+            const hasTemplate = normalized.includes("{{");
+            rules.push({
+                stepIndex,
+                matchers: [pathTemplateToRegex(normalized), pathTemplateToRegex(withoutOutputPrefix)],
+                hasTemplate
+            });
+        }
+    }
 
     for (const file of files) {
-        if (!patterns.some((rx) => rx.test(file))) {
+        let shouldDelete = false;
+        for (const rule of rules) {
+            if (!rule.matchers.some((rx) => rx.test(file))) {
+                continue;
+            }
+
+            if (
+                preserveBeforeDisplayLoopIndex !== undefined
+                && baseLoopSignature
+                && rule.stepIndex >= fromIndex
+                && rule.stepIndex <= loopGroupEnd
+                && rule.hasTemplate
+            ) {
+                const parsedName = path.posix.parse(file).name;
+                const maybeLoopDisplayIndex = Number(parsedName);
+                if (Number.isFinite(maybeLoopDisplayIndex) && maybeLoopDisplayIndex < preserveBeforeDisplayLoopIndex) {
+                    // fromLoopIndex より前の反復成果物は残す。
+                    continue;
+                }
+            }
+
+            shouldDelete = true;
+            break;
+        }
+
+        if (!shouldDelete) {
             continue;
         }
         unlinkSync(path.resolve(outputDir, file));
@@ -299,6 +353,7 @@ function prepareOutputWorkspace(
     configDir: string,
     projectRoot: string,
     fromStepId: string,
+    fromLoopIndex?: number,
     sourceRunId?: string
 ): void {
     const outputDir = path.resolve(projectRoot, "output");
@@ -318,7 +373,7 @@ function prepareOutputWorkspace(
         // 新規実行でfromStep指定時は、現在outputを検証して足りない場合は停止する。
         validateRequiredPreviousOutputs(config.steps, fromIndex, outputDir, "current output");
         // 既存outputのうち再実行対象ステップ以降だけ消して再計算する。
-        removeOutputsForSteps(config.steps, fromIndex, outputDir);
+        removeOutputsForSteps(config.steps, fromIndex, outputDir, fromLoopIndex);
         return;
     }
 
@@ -332,7 +387,7 @@ function prepareOutputWorkspace(
     clearDirectory(outputDir);
     cpSync(snapshotOutputDir, outputDir, { recursive: true });
     // 再実行対象ステップ以降の出力は消して、復元元との差分汚染を防ぐ。
-    removeOutputsForSteps(config.steps, fromIndex, outputDir);
+    removeOutputsForSteps(config.steps, fromIndex, outputDir, fromLoopIndex);
 }
 
 function seedRunSnapshotFromPreparedOutput(projectRoot: string, runArtifactsDir: string): void {
@@ -565,7 +620,7 @@ async function executeStepIteration(
 
     const scopedVars: Record<string, string | number> = {
         ...state.variables,
-        [iteratorVar]: iteration
+        [iteratorVar]: iteration + 1
     };
 
     let nextState: RuntimeState = {
@@ -688,7 +743,7 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
         throw new Error(`toLoopIndex (${requestedToLoopIndex}) must be greater than or equal to fromLoopIndex (${requestedFromLoopIndex}).`);
     }
 
-    prepareOutputWorkspace(config, configDir, projectRoot, fromStepId, options.sourceRunId);
+    prepareOutputWorkspace(config, configDir, projectRoot, fromStepId, requestedFromLoopIndex, options.sourceRunId);
 
     const stateStore = new StateStore(configDir, config.run.stateDir, runId);
     const runArtifactsDir = path.resolve(configDir, config.run.stateDir, runId);
@@ -773,6 +828,7 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
 
             const groupEnd = findLoopGroupEnd(config.steps, index);
             const group = config.steps.slice(index, groupEnd + 1);
+            const hasToStepInGroup = Boolean(toStepId) && group.some((groupedStep) => groupedStep.id === toStepId);
             const iteratorVar = step.loop.iteratorVar ?? "loopIndex";
             const loopCount = resolveStepLoopCount(step, projectRoot, state.variables);
             const startIteration = index === stepStartIndex ? requestedFromLoopIndex : 0;
@@ -792,8 +848,15 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
                 for (const groupedStep of group) {
                     const groupedIndex = config.steps.findIndex((s) => s.id === groupedStep.id);
                     if (!isWithinRangeStep(groupedIndex)) {
-                        reachedBoundary = true;
-                        break;
+                        const allowPostToStepWithinSameGroup = hasToStepInGroup
+                            && requestedToLoopIndex !== undefined
+                            && groupedIndex > stepEndIndex
+                            && iteration < requestedToLoopIndex;
+                        if (allowPostToStepWithinSameGroup) {
+                            // toStep より後続の同一ループステップは、境界より前のiterationのみ実行する。
+                        } else {
+                            break;
+                        }
                     }
                     state = await executeStepIteration(
                         groupedStep,
@@ -833,6 +896,8 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
             endedAt: new Date().toISOString()
         };
         stateStore.save(state);
+        // 完了後は履歴スナップショットを参照する前提で、作業用outputを空に戻す。
+        clearDirectory(path.resolve(projectRoot, "output"));
         return state;
     } catch (error) {
         const isCancelled = error instanceof PipelineCancelledError;
@@ -844,6 +909,8 @@ export async function runPipeline(options: RunPipelineOptions): Promise<RuntimeS
             error: message
         };
         stateStore.save(failed);
+        // 異常終了時も作業用outputを残さない。
+        clearDirectory(path.resolve(projectRoot, "output"));
         throw error;
     }
 }

@@ -46,10 +46,10 @@ function parseArgs(argv: string[]): CliArgs {
         if (token === "--loop-index") {
             const rawValue = args[i + 1];
             const parsed = Number(rawValue);
-            if (!Number.isInteger(parsed) || parsed < 0) {
-                throw new Error("--loop-index must be a non-negative integer.");
+            if (!Number.isInteger(parsed) || parsed < 1) {
+                throw new Error("--loop-index must be a positive integer (1-based).");
             }
-            fromLoopIndex = parsed;
+            fromLoopIndex = parsed - 1;
             i += 1;
             continue;
         }
@@ -61,10 +61,10 @@ function parseArgs(argv: string[]): CliArgs {
         if (token === "--to-loop-index") {
             const rawValue = args[i + 1];
             const parsed = Number(rawValue);
-            if (!Number.isInteger(parsed) || parsed < 0) {
-                throw new Error("--to-loop-index must be a non-negative integer.");
+            if (!Number.isInteger(parsed) || parsed < 1) {
+                throw new Error("--to-loop-index must be a positive integer (1-based).");
             }
-            toLoopIndex = parsed;
+            toLoopIndex = parsed - 1;
             i += 1;
             continue;
         }

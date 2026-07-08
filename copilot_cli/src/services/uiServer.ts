@@ -190,21 +190,23 @@ export function startUiServer(options: UiServerOptions): void {
         const fromStepId = typeof req.body?.fromStepId === "string" && req.body.fromStepId.trim()
             ? req.body.fromStepId.trim()
             : undefined;
-        const fromLoopIndex = req.body?.fromLoopIndex === undefined || req.body?.fromLoopIndex === null || req.body?.fromLoopIndex === ""
+        const fromLoopIndexUser = req.body?.fromLoopIndex === undefined || req.body?.fromLoopIndex === null || req.body?.fromLoopIndex === ""
             ? undefined
             : Number(req.body.fromLoopIndex);
-        if (fromLoopIndex !== undefined && (!Number.isInteger(fromLoopIndex) || fromLoopIndex < 0)) {
-            return res.status(400).json({ error: "fromLoopIndex は 0 以上の整数で指定してください。" });
+        if (fromLoopIndexUser !== undefined && (!Number.isInteger(fromLoopIndexUser) || fromLoopIndexUser < 1)) {
+            return res.status(400).json({ error: "fromLoopIndex は 1 以上の整数で指定してください。" });
         }
+        const fromLoopIndex = fromLoopIndexUser === undefined ? undefined : fromLoopIndexUser - 1;
         const toStepId = typeof req.body?.toStepId === "string" && req.body.toStepId.trim()
             ? req.body.toStepId.trim()
             : undefined;
-        const toLoopIndex = req.body?.toLoopIndex === undefined || req.body?.toLoopIndex === null || req.body?.toLoopIndex === ""
+        const toLoopIndexUser = req.body?.toLoopIndex === undefined || req.body?.toLoopIndex === null || req.body?.toLoopIndex === ""
             ? undefined
             : Number(req.body.toLoopIndex);
-        if (toLoopIndex !== undefined && (!Number.isInteger(toLoopIndex) || toLoopIndex < 0)) {
-            return res.status(400).json({ error: "toLoopIndex は 0 以上の整数で指定してください。" });
+        if (toLoopIndexUser !== undefined && (!Number.isInteger(toLoopIndexUser) || toLoopIndexUser < 1)) {
+            return res.status(400).json({ error: "toLoopIndex は 1 以上の整数で指定してください。" });
         }
+        const toLoopIndex = toLoopIndexUser === undefined ? undefined : toLoopIndexUser - 1;
         const sourceRunId = typeof req.body?.sourceRunId === "string" && req.body.sourceRunId.trim()
             ? req.body.sourceRunId.trim()
             : undefined;

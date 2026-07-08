@@ -34,6 +34,7 @@ const selectedOutputByStep = new Map();
 let refreshTimerId = null;
 let latestRuntimeRunId = "";
 let pendingFreshRunMask = null;
+let wasRunning = false;
 
 // 開始ステップのプルダウン候補を設定する。
 function populateFromStepOptions() {
@@ -69,16 +70,21 @@ function populateFromStepOptions() {
   }
 }
 
-function parseNonNegativeInt(value) {
+function parsePositiveInt(value) {
   const raw = String(value || "").trim();
   if (raw.length === 0) {
     return { value: undefined, hasValue: false };
   }
   const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed < 0) {
+  if (!Number.isInteger(parsed) || parsed < 1) {
     return { value: undefined, hasValue: true, invalid: true };
   }
   return { value: parsed, hasValue: true, invalid: false };
+}
+
+// UI表示では loopIndex を 1 始まりで扱う。
+function toDisplayLoopIndex(value) {
+  return Number.isInteger(value) ? value + 1 : "-";
 }
 
 function stepIndex(stepId) {
@@ -119,7 +125,7 @@ function computeProgress(runtime) {
   const boundedTotal = Math.max(total, 1);
   const percent = Math.min(100, Math.round((completed / boundedTotal) * 100));
   const currentStep = runtime.currentStepId || "-";
-  const currentIteration = Number.isInteger(runtime.currentIteration) ? runtime.currentIteration : 0;
+  const currentIteration = Number.isInteger(runtime.currentIteration) ? runtime.currentIteration + 1 : "-";
   return {
     percent,
     label: `進捗: ${percent}% / 現在: ${currentStep} (${currentIteration})`
@@ -210,6 +216,21 @@ function pickDisplayRuntime(latestRuntime, runs) {
 
 function effectiveSnapshotRunId() {
   return selectedRunId === "__new__" ? "" : selectedRunId;
+}
+
+// 実行完了直後は、最新runのスナップショット表示へ自動で切り替える。
+function shouldAutoSelectCompletedSnapshot(runtimeLatest, control) {
+  const isRunningNow = Boolean(control?.isRunning);
+  const justFinished = wasRunning && !isRunningNow;
+  wasRunning = isRunningNow;
+
+  if (!justFinished) {
+    return false;
+  }
+  if (selectedRunId !== "__new__") {
+    return false;
+  }
+  return Boolean(runtimeLatest?.runId);
 }
 
 // runIdセレクタを更新する。
@@ -355,24 +376,24 @@ function setupRunControls() {
       const fromStepId = fromStepSelect.value.trim() || undefined;
       const toStepId = toStepSelect.value.trim() || undefined;
 
-      const parsedFromLoop = parseNonNegativeInt(fromLoopIndexInput.value);
+      const parsedFromLoop = parsePositiveInt(fromLoopIndexInput.value);
       if (parsedFromLoop.invalid) {
-        window.alert("開始loopIndexは 0 以上の整数で指定してください。");
+        window.alert("開始loopIndexは 1 以上の整数で指定してください。");
         runStatus.textContent = "開始loopIndexの入力が不正です。";
         return;
       }
       const fromLoopIndex = parsedFromLoop.value;
 
-      const parsedToLoop = parseNonNegativeInt(toLoopIndexInput.value);
+      const parsedToLoop = parsePositiveInt(toLoopIndexInput.value);
       if (parsedToLoop.invalid) {
-        window.alert("終了loopIndexは 0 以上の整数で指定してください。");
+        window.alert("終了loopIndexは 1 以上の整数で指定してください。");
         runStatus.textContent = "終了loopIndexの入力が不正です。";
         return;
       }
       const toLoopIndex = parsedToLoop.value;
 
-      if (fromLoopIndex !== undefined && fromStepId && !isLoopStep(fromStepId) && fromLoopIndex !== 0) {
-        window.alert("開始loopIndexはループステップに対して指定してください。非ループでは 0 のみ有効です。");
+      if (fromLoopIndex !== undefined && fromStepId && !isLoopStep(fromStepId) && fromLoopIndex !== 1) {
+        window.alert("開始loopIndexはループステップに対して指定してください。非ループでは 1 のみ有効です。");
         runStatus.textContent = "開始loopIndexの指定条件が不正です。";
         return;
       }
@@ -381,8 +402,8 @@ function setupRunControls() {
         runStatus.textContent = "終了条件の指定が不足しています。";
         return;
       }
-      if (toLoopIndex !== undefined && toStepId && !isLoopStep(toStepId) && toLoopIndex !== 0) {
-        window.alert("終了loopIndexはループステップに対して指定してください。非ループでは 0 のみ有効です。");
+      if (toLoopIndex !== undefined && toStepId && !isLoopStep(toStepId) && toLoopIndex !== 1) {
+        window.alert("終了loopIndexはループステップに対して指定してください。非ループでは 1 のみ有効です。");
         runStatus.textContent = "終了loopIndexの指定条件が不正です。";
         return;
       }
@@ -439,6 +460,12 @@ function setupRunControls() {
       }
 
       const result = await postJson("/api/run", payload);
+      const wasSnapshotRun = Boolean(payload.sourceRunId);
+      if (wasSnapshotRun) {
+        // スナップショット再実行時も進捗追跡できるよう、新規実行ビューへ戻す。
+        selectedRunId = "__new__";
+        pendingFreshRunMask = { previousRunId: latestRuntimeRunId || "" };
+      }
       runStatus.textContent = result.message || "実行を開始しました。";
       await refreshAll();
     } catch (error) {
@@ -475,13 +502,13 @@ function renderRuntime(runtime) {
   root.innerHTML = `
     <div class="item"><span class="label">runId</span><span class="value">${runtime.runId ?? "-"}</span></div>
     <div class="item"><span class="label">phase</span><span class="value"><span class="badge ${phaseClass}">${runtime.phase}</span></span></div>
-    <div class="item"><span class="label">current</span><span class="value">${runtime.currentStepId ?? "-"} (#${runtime.currentIteration ?? 0})</span></div>
+    <div class="item"><span class="label">current</span><span class="value">${runtime.currentStepId ?? "-"} (#${toDisplayLoopIndex(runtime.currentIteration)})</span></div>
     <div class="item"><span class="label">dryRun</span><span class="value">${runtime.dryRun ? "true" : "false"}</span></div>
     <div class="item"><span class="label">adminMode</span><span class="value">${runtime.adminMode ? "true" : "false"}</span></div>
     <div class="item"><span class="label">from</span><span class="value">${runtime.fromStepId ?? "-"}</span></div>
-    <div class="item"><span class="label">fromLoopIndex</span><span class="value">${Number.isInteger(runtime.fromLoopIndex) ? runtime.fromLoopIndex : "-"}</span></div>
+    <div class="item"><span class="label">fromLoopIndex</span><span class="value">${toDisplayLoopIndex(runtime.fromLoopIndex)}</span></div>
     <div class="item"><span class="label">to</span><span class="value">${runtime.toStepId ?? "-"}</span></div>
-    <div class="item"><span class="label">toLoopIndex</span><span class="value">${Number.isInteger(runtime.toLoopIndex) ? runtime.toLoopIndex : "-"}</span></div>
+    <div class="item"><span class="label">toLoopIndex</span><span class="value">${toDisplayLoopIndex(runtime.toLoopIndex)}</span></div>
   `;
 }
 
@@ -507,15 +534,25 @@ function renderStepTable(runtime, control, outputFiles) {
     completedByStep.set(log.stepId, (completedByStep.get(log.stepId) || 0) + 1);
   }
 
-  const loopCount = Math.max(1, Number(runtime?.variables?.loopCount || 1));
+  const outputCandidatesByStep = new Map();
+  for (const step of steps) {
+    outputCandidatesByStep.set(step.id, resolveStepOutputCandidates(step, outputFiles));
+  }
+
   const currentStepId = runtime?.currentStepId;
   const currentIteration = Number.isInteger(runtime?.currentIteration) ? runtime.currentIteration : null;
   const isRunning = Boolean(control?.isRunning);
   root.innerHTML = steps.map((step, index) => {
-    const expected = step.hasLoop ? loopCount : 1;
-    const completed = Number(completedByStep.get(step.id) || 0);
+    const completedFromLogs = Number(completedByStep.get(step.id) || 0);
     const isCurrent = isRunning && currentStepId === step.id;
+    const outputCandidates = outputCandidatesByStep.get(step.id) || [];
+    const completedFromOutputs = step.hasLoop
+      ? outputCandidates.length
+      : (outputCandidates.length > 0 ? 1 : 0);
+    const completed = Math.max(completedFromLogs, completedFromOutputs);
+    const expected = Math.max(1, completed, (isCurrent && currentIteration !== null) ? currentIteration + 1 : 0);
     const hasRequiredOutputs = hasRequiredOutputsForStep(step, outputFiles, expected);
+    const hasAnyOutputs = outputCandidates.length > 0;
 
     let status = "waiting";
     if (runtime?.phase === "failed" && currentStepId === step.id) {
@@ -526,13 +563,15 @@ function renderStepTable(runtime, control, outputFiles) {
       status = "running";
     } else if (completed >= expected) {
       status = "done";
+    } else if (runtime?.phase === "completed" && (completed > 0 || hasAnyOutputs)) {
+      // toLoopIndex 指定で途中完了したrunでも、実際に生成済みの出力を参照できるようにする。
+      status = "done";
     } else if (hasRequiredOutputs) {
       // fromStep実行時に流用された出力があるステップは done 扱いにする。
       status = "done";
     }
 
-    const iterationText = isCurrent && currentIteration !== null ? String(currentIteration) : "-";
-    const outputCandidates = resolveStepOutputCandidates(step, outputFiles);
+    const iterationText = isCurrent && currentIteration !== null ? String(currentIteration + 1) : "-";
     const selectionKey = outputSelectionKey(step.id);
     const selectedCandidate = selectedOutputByStep.get(selectionKey);
     const selected = outputCandidates.some((item) => item.path === selectedCandidate)
@@ -605,6 +644,10 @@ async function refreshAll() {
     ]);
 
     latestRuntimeRunId = runtimeLatest?.runId || "";
+
+    if (shouldAutoSelectCompletedSnapshot(runtimeLatest, control)) {
+      selectedRunId = runtimeLatest.runId;
+    }
 
     renderRunSelector(runtimeLatest, runs);
     const runtime = pickDisplayRuntime(runtimeLatest, runs);
